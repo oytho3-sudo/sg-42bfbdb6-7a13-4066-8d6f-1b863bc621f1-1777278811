@@ -45,7 +45,7 @@ export default function Home() {
                 </Button>
               </Link>
 
-              <Link href="/teileliste">
+              <Link href="/Teileliste">
                 <Button 
                   size="lg" 
                   variant="outline"
