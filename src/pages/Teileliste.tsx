@@ -284,7 +284,8 @@ function Scanner({ onClose, targetRowId, teile, onInsertIntoRow, onAddAndInsert 
 
   const cropCanvasRef = useRef<HTMLCanvasElement>(null);
   const procCanvasRef = useRef<HTMLCanvasElement>(null);
-  const fileInputRef  = useRef<HTMLInputElement>(null);
+  const cameraInputRef  = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
   const origImageRef  = useRef<HTMLImageElement | null>(null);
   const cropRectRef   = useRef<CropRect | null>(null);
   const isDraggingRef = useRef(false);
@@ -323,9 +324,16 @@ function Scanner({ onClose, targetRowId, teile, onInsertIntoRow, onAddAndInsert 
   const loadImage = useCallback((file: File) => {
     const url = URL.createObjectURL(file);
     const img = new Image();
-    img.onload = () => { origImageRef.current = img; cropRectRef.current = null; setupCropCanvas(); setStep('crop'); };
+    img.onload = () => {
+      origImageRef.current = img;
+      cropRectRef.current = null;
+      URL.revokeObjectURL(url);
+      // Direkt verarbeiten, kein Crop-Schritt
+      processImage(img, null);
+    };
+    img.onerror = () => URL.revokeObjectURL(url);
     img.src = url;
-  }, [setupCropCanvas]);
+  }, []);
 
   const getCanvasPos = (e: React.MouseEvent | React.TouchEvent) => {
     const canvas = cropCanvasRef.current!;
@@ -342,13 +350,11 @@ function Scanner({ onClose, targetRowId, teile, onInsertIntoRow, onAddAndInsert 
     drawCrop();
   };
 
-  const handleConfirm = async () => {
+  const processImage = async (img: HTMLImageElement, cr: CropRect | null) => {
     setStep('process'); setStatus('⏳ Bild wird vorbereitet…');
-    const canvas = cropCanvasRef.current!, img = origImageRef.current!;
-    const scale = (canvas as any)._scale || 1;
-    const cr = cropRectRef.current;
-    const sx = cr ? cr.x / scale : 0, sy = cr ? cr.y / scale : 0;
-    const sw = cr ? cr.w / scale : img.naturalWidth, sh = cr ? cr.h / scale : img.naturalHeight;
+
+    const sx = cr ? cr.x : 0, sy = cr ? cr.y : 0;
+    const sw = cr ? cr.w : img.naturalWidth, sh = cr ? cr.h : img.naturalHeight;
     const sc = sw > 1200 ? 1200 / sw : 1;
     const targetW = Math.round(sw * sc), targetH = Math.round(sh * sc);
 
@@ -356,16 +362,15 @@ function Scanner({ onClose, targetRowId, teile, onInsertIntoRow, onAddAndInsert 
     rawCanvas.width = targetW; rawCanvas.height = targetH;
     rawCanvas.getContext('2d')!.drawImage(img, sx, sy, sw, sh, 0, 0, targetW, targetH);
 
-    const work = document.createElement('canvas');
-    work.width = targetW; work.height = targetH;
-    const wctx = work.getContext('2d')!;
-    wctx.drawImage(img, sx, sy, sw, sh, 0, 0, targetW, targetH);
-    enhanceImage(wctx, targetW, targetH);
+    // Vorschau anzeigen
+    const pc = procCanvasRef.current;
+    if (pc) {
+      const maxPW = Math.min(window.innerWidth - 32, 500);
+      pc.width = maxPW; pc.height = Math.round(targetH * maxPW / targetW);
+      pc.getContext('2d')!.drawImage(rawCanvas, 0, 0, pc.width, pc.height);
+    }
 
-    const pc = procCanvasRef.current!, maxPW = Math.min(window.innerWidth - 32, 500);
-    pc.width = maxPW; pc.height = Math.round(targetH * maxPW / targetW);
-    pc.getContext('2d')!.drawImage(work, 0, 0, pc.width, pc.height);
-
+    // Barcode-Erkennung
     let barcodeNr = '';
     if ('BarcodeDetector' in window) {
       try {
@@ -375,13 +380,73 @@ function Scanner({ onClose, targetRowId, teile, onInsertIntoRow, onAddAndInsert 
       } catch (_) {}
     }
 
-    setStatus('⏳ Texterkennung…');
+    // ── Claude AI Bilderkennung ────────────────────────────────────────────────
+    setStatus('⏳ Claude KI erkennt Bild…');
+    try {
+      const base64 = rawCanvas.toDataURL('image/jpeg', 0.85).split(',')[1];
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 500,
+          messages: [{
+            role: 'user',
+            content: [
+              { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: base64 } },
+              { type: 'text', text: `Analysiere dieses Bild eines Etiketts oder Lieferscheins. Extrahiere folgende Felder und antworte NUR mit einem JSON-Objekt, kein Text davor oder danach:
+{
+  "artikelnr": "die Artikelnummer oder Teilenummer (z.B. 12345, ABC-123)",
+  "beschreibung": "die Produktbeschreibung oder Bezeichnung",
+  "stk": "die Stückzahl oder Menge als Zahl (Standard: 1)"
+}
+Wenn ein Feld nicht erkennbar ist, setze einen leeren String "" bzw. "1" für stk.` }
+            ]
+          }]
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const text = data.content?.find((b: any) => b.type === 'text')?.text?.trim() || '';
+        const clean = text.replace(/```json|```/g, '').trim();
+        try {
+          const parsed = JSON.parse(clean);
+          const fields: ExtractedFields = {
+            artikelnr: barcodeNr || parsed.artikelnr || '',
+            beschreibung: parsed.beschreibung || '',
+            stk: parsed.stk || '1',
+          };
+          setExtracted(fields);
+          setRawText(text);
+          setStep('result');
+          return;
+        } catch (_) {
+          // JSON-Parsing fehlgeschlagen → Fallback
+        }
+      }
+    } catch (_) {
+      // Kein Internet oder API-Fehler → Fallback auf Tesseract
+    }
+
+    // ── Fallback: Tesseract (offline) ─────────────────────────────────────────
+    if (barcodeNr) {
+      setExtracted({ artikelnr: barcodeNr, beschreibung: '', stk: '1' });
+      setRawText(''); setStep('result'); return;
+    }
+
+    setStatus('⏳ Offline-Texterkennung…');
     await new Promise(r => setTimeout(r, 30));
+
+    const work = document.createElement('canvas');
+    work.width = targetW; work.height = targetH;
+    const wctx = work.getContext('2d')!;
+    wctx.drawImage(img, sx, sy, sw, sh, 0, 0, targetW, targetH);
+    enhanceImage(wctx, targetW, targetH);
 
     const Tesseract = (window as any).Tesseract;
     if (!Tesseract) {
-      if (barcodeNr) { setExtracted({ artikelnr: barcodeNr, beschreibung: '', stk: '1' }); setRawText(''); setStep('result'); return; }
-      setStatus('⚠️ Tesseract nicht geladen – Internetverbindung prüfen.'); return;
+      setStatus('⚠️ Keine Internetverbindung und Tesseract nicht geladen.'); return;
     }
     try {
       const opts = { tessedit_pageseg_mode: '6', preserve_interword_spaces: '1' };
@@ -391,14 +456,17 @@ function Scanner({ onClose, targetRowId, teile, onInsertIntoRow, onAddAndInsert 
       ]);
       const raw1 = res1.data.text.trim(), raw2 = res2.data.text.trim();
       const raw = raw1.length >= raw2.length ? raw1 : raw2;
-      if (!raw && !barcodeNr) { setStatus('⚠️ Kein Text erkannt – bitte Bereich neu wählen.'); return; }
+      if (!raw) { setStatus('⚠️ Kein Text erkannt.'); return; }
       const fields = extractFields(raw);
-      if (barcodeNr) fields.artikelnr = barcodeNr;
       setExtracted(fields); setRawText(raw); setStep('result');
     } catch (err: any) {
-      if (barcodeNr) { setExtracted({ artikelnr: barcodeNr, beschreibung: '', stk: '1' }); setRawText(''); setStep('result'); return; }
       setStatus('⚠️ OCR Fehler: ' + err.message);
     }
+  };
+
+  const handleConfirm = async () => {
+    const img = origImageRef.current!;
+    await processImage(img, cropRectRef.current);
   };
 
   const sbtn = (bg: string): React.CSSProperties => ({ background: bg, color: '#fff', border: 'none', padding: '6px 14px', borderRadius: 4, fontSize: 11, cursor: 'pointer', fontWeight: 'bold', minHeight: 36, touchAction: 'manipulation' });
@@ -414,11 +482,11 @@ function Scanner({ onClose, targetRowId, teile, onInsertIntoRow, onAddAndInsert 
         {step === 'source' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {[
-              { icon: '📷', title: 'Foto aufnehmen', sub: 'Kamera öffnen und Etikett fotografieren', capture: true },
-              { icon: '🖼', title: 'Bild aus Galerie', sub: 'Vorhandenes Foto verwenden', capture: false },
+              { icon: '📷', title: 'Foto aufnehmen', sub: 'Kamera öffnen und Etikett fotografieren', camera: true },
+              { icon: '🖼', title: 'Bild aus Galerie', sub: 'Vorhandenes Foto verwenden', camera: false },
             ].map((opt, i) => (
               <div key={i}
-                onClick={() => { if (opt.capture) fileInputRef.current?.setAttribute('capture', 'environment'); else fileInputRef.current?.removeAttribute('capture'); fileInputRef.current?.click(); }}
+                onClick={() => { if (opt.camera) cameraInputRef.current?.click(); else galleryInputRef.current?.click(); }}
                 style={{ background: '#2a2a4e', border: '2px solid #444', borderRadius: 8, padding: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 14, color: '#fff' }}
                 onMouseEnter={e => (e.currentTarget.style.borderColor = '#8e24aa')}
                 onMouseLeave={e => (e.currentTarget.style.borderColor = '#444')}
@@ -427,8 +495,10 @@ function Scanner({ onClose, targetRowId, teile, onInsertIntoRow, onAddAndInsert 
                 <div><strong style={{ display: 'block', fontSize: 12, marginBottom: 2 }}>{opt.title}</strong><span style={{ fontSize: 10, color: '#aaa' }}>{opt.sub}</span></div>
               </div>
             ))}
-            <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }}
-              onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) loadImage(f); }} />
+            <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" style={{ display: 'none' }}
+              onChange={e => { const f = e.target.files?.[0]; if (f) loadImage(f); e.target.value = ''; }} />
+            <input ref={galleryInputRef} type="file" accept="image/*" style={{ display: 'none' }}
+              onChange={e => { const f = e.target.files?.[0]; if (f) loadImage(f); e.target.value = ''; }} />
           </div>
         )}
 
