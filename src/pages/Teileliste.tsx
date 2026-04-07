@@ -182,6 +182,29 @@ function enhanceImage(ctx: CanvasRenderingContext2D, w: number, h: number): void
   ctx.putImageData(imageData, 0, 0);
 }
 
+function pickBestBarcode(codes: Array<{ rawValue?: string; format?: string }>): string {
+  if (!codes.length) return '';
+  const formatScore: Record<string, number> = {
+    code_128: 5,
+    ean_13: 4,
+    ean_8: 3,
+    upc_a: 3,
+    upc_e: 3,
+    code_39: 2,
+    code_93: 2,
+    itf: 2,
+    qr_code: 1,
+    data_matrix: 1,
+    aztec: 1,
+    pdf417: 1,
+  };
+  const ranked = codes
+    .map(c => ({ value: (c.rawValue || '').trim(), score: formatScore[(c.format || '').toLowerCase()] || 0 }))
+    .filter(c => c.value.length > 2)
+    .sort((a, b) => (b.score - a.score) || (b.value.length - a.value.length));
+  return ranked[0]?.value || '';
+}
+
 function createInitialTeile(): Teil[] {
   return Array.from({ length: 20 }, (_, i) => ({ id: i + 1, pos: String(i + 1), beschreibung: '', artikelnr: '', stk: '' }));
 }
@@ -328,12 +351,20 @@ function Scanner({ onClose, targetRowId, teile, onInsertIntoRow, onAddAndInsert 
       origImageRef.current = img;
       cropRectRef.current = null;
       URL.revokeObjectURL(url);
-      // Direkt verarbeiten, kein Crop-Schritt
-      processImage(img, null);
+      setStep('crop');
+      requestAnimationFrame(() => setupCropCanvas());
     };
     img.onerror = () => URL.revokeObjectURL(url);
     img.src = url;
-  }, []);
+  }, [setupCropCanvas]);
+
+  useEffect(() => {
+    if (step !== 'crop') return;
+    const onResize = () => setupCropCanvas();
+    setupCropCanvas();
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, [step, setupCropCanvas]);
 
   const getCanvasPos = (e: React.MouseEvent | React.TouchEvent) => {
     const canvas = cropCanvasRef.current!;
@@ -376,60 +407,11 @@ function Scanner({ onClose, targetRowId, teile, onInsertIntoRow, onAddAndInsert 
       try {
         const det = new (window as any).BarcodeDetector({ formats: ['qr_code','ean_13','ean_8','code_128','code_39','code_93','itf','upc_a','upc_e','data_matrix','aztec','pdf417'] });
         const codes = await det.detect(rawCanvas);
-        if (codes.length > 0) barcodeNr = codes[0].rawValue;
+        barcodeNr = pickBestBarcode(codes);
       } catch (_) {}
     }
 
-    // ── Claude AI Bilderkennung ────────────────────────────────────────────────
-    setStatus('⏳ Claude KI erkennt Bild…');
-    try {
-      const base64 = rawCanvas.toDataURL('image/jpeg', 0.85).split(',')[1];
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
-          max_tokens: 500,
-          messages: [{
-            role: 'user',
-            content: [
-              { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: base64 } },
-              { type: 'text', text: `Analysiere dieses Bild eines Etiketts oder Lieferscheins. Extrahiere folgende Felder und antworte NUR mit einem JSON-Objekt, kein Text davor oder danach:
-{
-  "artikelnr": "die Artikelnummer oder Teilenummer (z.B. 12345, ABC-123)",
-  "beschreibung": "die Produktbeschreibung oder Bezeichnung",
-  "stk": "die Stückzahl oder Menge als Zahl (Standard: 1)"
-}
-Wenn ein Feld nicht erkennbar ist, setze einen leeren String "" bzw. "1" für stk.` }
-            ]
-          }]
-        })
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        const text = data.content?.find((b: any) => b.type === 'text')?.text?.trim() || '';
-        const clean = text.replace(/```json|```/g, '').trim();
-        try {
-          const parsed = JSON.parse(clean);
-          const fields: ExtractedFields = {
-            artikelnr: barcodeNr || parsed.artikelnr || '',
-            beschreibung: parsed.beschreibung || '',
-            stk: parsed.stk || '1',
-          };
-          setExtracted(fields);
-          setRawText(text);
-          setStep('result');
-          return;
-        } catch (_) {
-          // JSON-Parsing fehlgeschlagen → Fallback
-        }
-      }
-    } catch (_) {
-      // Kein Internet oder API-Fehler → Fallback auf Tesseract
-    }
-
-    // ── Fallback: Tesseract (offline) ─────────────────────────────────────────
+    // ── OCR/Barcode Verarbeitung (offline) ────────────────────────────────────
     if (barcodeNr) {
       setExtracted({ artikelnr: barcodeNr, beschreibung: '', stk: '1' });
       setRawText(''); setStep('result'); return;
@@ -451,8 +433,8 @@ Wenn ein Feld nicht erkennbar ist, setze einen leeren String "" bzw. "1" für st
     try {
       const opts = { tessedit_pageseg_mode: '6', preserve_interword_spaces: '1' };
       const [res1, res2] = await Promise.all([
-        Tesseract.recognize(rawCanvas, 'eng', { logger: (m: any) => { if (m.status === 'recognizing text') setStatus(`⏳ OCR: ${Math.round(m.progress * 100)}%`); }, ...opts }),
-        Tesseract.recognize(work, 'eng', { logger: () => {}, ...opts }),
+        Tesseract.recognize(rawCanvas, 'deu+eng', { logger: (m: any) => { if (m.status === 'recognizing text') setStatus(`⏳ OCR: ${Math.round(m.progress * 100)}%`); }, ...opts }),
+        Tesseract.recognize(work, 'deu+eng', { logger: () => {}, ...opts }),
       ]);
       const raw1 = res1.data.text.trim(), raw2 = res2.data.text.trim();
       const raw = raw1.length >= raw2.length ? raw1 : raw2;
