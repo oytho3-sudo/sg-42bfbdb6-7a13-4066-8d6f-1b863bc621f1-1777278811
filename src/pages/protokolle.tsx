@@ -34,9 +34,7 @@ export default function ProtokollePage() {
                   </div>
                   <div className="flex-1">
                     <CardTitle>Wartungsprotokoll_GS</CardTitle>
-                    <CardDescription>
-                      Wartungsprotokoll für Gastronomiespülmaschinen
-                    </CardDescription>
+                    
                   </div>
                 </div>
               </CardHeader>
