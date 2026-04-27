@@ -46,6 +46,27 @@ export default function ProtokollePage() {
                 </Link>
               </CardContent>
             </Card>
+
+            <Card className="hover:shadow-lg transition-shadow">
+              <CardHeader>
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <FileText className="w-6 h-6 text-primary" />
+                  </div>
+                  <div className="flex-1">
+                    <CardTitle>Wartungsprotokoll_GSK</CardTitle>
+                    
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <Link href="/Wartungsprotokoll_GSK">
+                  <Button className="w-full">
+                    Protokoll öffnen
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </div>
