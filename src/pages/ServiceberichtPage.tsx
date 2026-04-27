@@ -376,7 +376,8 @@ function calcGesamtBreakdown(monteure: Monteur[]): { total: number; samstag: num
   return { total, samstag, sonntag, feiertag, nacht };
 }
 
-function calcReiseBreakdown(anreise: ReiseZeile, abreise: ReiseZeile): { total: number; samstag: number; sonntag: number; feiertag: number; nacht: number } {
+function calcReiseBreakdown(anreise: ReiseZeile, abreise: ReiseZeile, monteurAnzahl: number): { total: number; samstag: number; sonntag: number; feiertag: number; nacht: number } {
+  const faktor = Math.max(1, monteurAnzahl || 1);
   let total = 0, samstag = 0, sonntag = 0, feiertag = 0, nacht = 0;
   [anreise, abreise].forEach(zeile => {
     const min = (() => {
@@ -387,11 +388,12 @@ function calcReiseBreakdown(anreise: ReiseZeile, abreise: ReiseZeile): { total: 
       const pause = parseInt(zeile.pauseMin) || 0;
       return diff > 0 ? diff - pause : 0;
     })();
-    total += min;
-    if (zeile.tagTyp === 'samstag')  samstag  += min;
-    if (zeile.tagTyp === 'sonntag')  sonntag  += min;
-    if (zeile.tagTyp === 'feiertag') feiertag += min;
-    nacht += calcNachtMin(zeile as unknown as MontagTag);
+    const gewichtet = min * faktor;
+    total += gewichtet;
+    if (zeile.tagTyp === 'samstag')  samstag  += gewichtet;
+    if (zeile.tagTyp === 'sonntag')  sonntag  += gewichtet;
+    if (zeile.tagTyp === 'feiertag') feiertag += gewichtet;
+    nacht += calcNachtMin(zeile as unknown as MontagTag) * faktor;
   });
   return { total, samstag, sonntag, feiertag, nacht };
 }
@@ -679,7 +681,8 @@ export default function ServiceberichtPage() {
   // ── Computed ───────────────────────────────────────────────────────────────
   const gesamtBreakdown = calcGesamtBreakdown(form.monteure);
   const gesamtAZ        = formatMin(gesamtBreakdown.total);
-  const reiseBreakdown  = calcReiseBreakdown(form.reiseAnreise, form.reiseAbreise);
+  const monteurAnzahl   = Math.max(1, form.monteure.length);
+  const reiseBreakdown  = calcReiseBreakdown(form.reiseAnreise, form.reiseAbreise, monteurAnzahl);
   const gesamtRZ        = formatMin(reiseBreakdown.total);
 
   // ── File name ──────────────────────────────────────────────────────────────
@@ -1112,7 +1115,7 @@ export default function ServiceberichtPage() {
                       const diff = (bh * 60 + bm) - (vh * 60 + vm);
                       const pause = parseInt(zeile.pauseMin) || 0;
                       return diff > 0 ? diff - pause : 0;
-                    })();
+                    })() * monteurAnzahl;
                     return (
                       <tr key={which} style={{ background: bg }}>
                         <td style={{ ...s.td, padding: '2px 4px' }} data-label={t.thDatum}>
