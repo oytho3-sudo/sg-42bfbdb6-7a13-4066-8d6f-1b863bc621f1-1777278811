@@ -1356,11 +1356,10 @@ const printStyles = `
   @media print {
     .no-print { display: none !important; }
 
-    /* Alles außer dem Servicebericht ausblenden (Navbar, Header, etc.) */
-    body > *:not(.print-body),
-    body > * > *:not(.print-body) { display: none !important; }
-    .print-body { display: block !important; }
-    nav, header, aside, [class*="nav"], [class*="toolbar"], [class*="sidebar"] { display: none !important; }
+    /* Navbar / App-Shell ausblenden */
+    nav, header, aside,
+    [class*="nav"], [class*="toolbar"], [class*="sidebar"],
+    [class*="header"], [class*="topbar"] { display: none !important; }
 
     /* Kompaktes 2-Seiten-Layout */
     @page { margin: 8mm 10mm; }
