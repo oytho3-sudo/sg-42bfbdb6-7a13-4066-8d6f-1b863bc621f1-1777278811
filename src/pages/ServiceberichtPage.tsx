@@ -16,7 +16,7 @@ const translations = {
     saveJson:             '💾 JSON speichern',
     toolbarTitle:         'Servicebericht · GERLIEVA Sprühtechnik GmbH',
     home:                 '🏠 Home',
-    pdfAlert:             'Im Druckdialog:\n1. Drucker → "Als PDF speichern"\n2. Weitere Einstellungen → "Hintergrundgrafiken" ✓ aktivieren\n→ Dann sind alle Farben im PDF enthalten.',
+    pdfAlert:             'Im Druckdialog:\n1. Drucker → "Als PDF speichern"\n2. Weitere Einstellungen → "Hintergrundgrafiken" ✓ aktivieren\n3. Weitere Einstellungen → "Kopf- und Fußzeilen" ✗ deaktivieren\n→ Dann sind alle Farben im PDF und kein URL/Profilpfad sichtbar.',
     toastSaved:           '✅ JSON gespeichert!',
     toastDownloaded:      '✅ JSON heruntergeladen!',
     toastLoaded:          '✅ Datei erfolgreich geladen!',
@@ -1355,6 +1355,12 @@ const printStyles = `
   }
   @media print {
     .no-print { display: none !important; }
+
+    /* Alles außer dem Servicebericht ausblenden (Navbar, Header, etc.) */
+    body > *:not(.print-body),
+    body > * > *:not(.print-body) { display: none !important; }
+    .print-body { display: block !important; }
+    nav, header, aside, [class*="nav"], [class*="toolbar"], [class*="sidebar"] { display: none !important; }
 
     /* Kompaktes 2-Seiten-Layout */
     @page { margin: 8mm 10mm; }
