@@ -1,6 +1,6 @@
 // WICHTIG: Diese Version MUSS bei jedem Deploy geändert werden!
 // Service Worker für Offline-Funktionalität und Caching
-const CACHE_VERSION = '2026-11-13-11-12';
+const CACHE_VERSION = '2026-11-13-11-13';
 const CACHE_NAME = `gerlieva-cache-${CACHE_VERSION}`;
 
 const urlsToCache = [
