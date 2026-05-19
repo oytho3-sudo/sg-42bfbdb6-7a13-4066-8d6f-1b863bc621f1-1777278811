@@ -1,5 +1,5 @@
 // WICHTIG: Diese Version MUSS bei jedem Deploy geändert werden!
-const CACHE_VERSION = '2026-05-19-08-33';
+const CACHE_VERSION = '2026-05-19-11-11';
 const CACHE_NAME = `gerlieva-cache-${CACHE_VERSION}`;
 
 const urlsToCache = [
