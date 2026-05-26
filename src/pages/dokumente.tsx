@@ -23,9 +23,7 @@ interface Document {
   description: string | null;
   user_id: string;
   shared_with_all: boolean;
-  profiles?: {
-    full_name: string | null;
-  };
+  profiles?: any;
 }
 
 export default function DokumentePage() {
@@ -76,7 +74,7 @@ export default function DokumentePage() {
         .from("documents")
         .select(`
           *,
-          profiles!documents_user_id_fkey(full_name)
+          profiles(full_name)
         `)
         .order("uploaded_at", { ascending: false });
 
@@ -88,7 +86,7 @@ export default function DokumentePage() {
       const { data, error } = await query;
 
       if (error) throw error;
-      setDocuments(data ?? []);
+      setDocuments(data as any);
     } catch (error: any) {
       toast({
         title: "Fehler beim Laden",

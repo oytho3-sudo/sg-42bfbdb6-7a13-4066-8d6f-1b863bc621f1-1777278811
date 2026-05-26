@@ -74,11 +74,6 @@ export function NavBar() {
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="hidden sm:flex items-center gap-2 text-sm">
-              <UserIcon className="h-4 w-4" />
-              <span className="text-muted-foreground">{userName || user.email}</span>
-            </div>
-
             {userRole === "Admin" && (
               <Button 
                 onClick={() => router.push("/admin/users")} 
@@ -96,7 +91,7 @@ export function NavBar() {
               className="flex items-center gap-2"
             >
               <UserIcon className="h-4 w-4" />
-              Profil
+              {userName || "Profil"}
             </Button>
 
             <ThemeSwitch />
