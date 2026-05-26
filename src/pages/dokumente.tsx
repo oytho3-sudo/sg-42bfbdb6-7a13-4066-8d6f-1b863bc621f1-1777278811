@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import { supabase } from "@/integrations/supabase/client";
 import { AuthGuard } from "@/components/AuthGuard";
-import { NavBar } from "@/components/NavBar";
 import { SEO } from "@/components/SEO";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { FileText, Upload, Trash2, Download, Loader2 } from "lucide-react";
+import { FileText, Upload, Trash2, Download, Loader2, Home, Share2 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface Document {
@@ -218,14 +217,22 @@ export default function DokumentePage() {
         description="Dokumentenverwaltung für Wartungsprotokolle"
       />
       <div className="min-h-screen bg-background">
-        <NavBar />
         <main className="container mx-auto px-4 py-8">
           <div className="max-w-4xl mx-auto space-y-6">
-            <div>
-              <h1 className="text-3xl font-bold">Dokumente</h1>
-              <p className="text-muted-foreground">
-                Laden Sie PDFs und Dokumente hoch
-              </p>
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-3xl font-bold">Dokumente</h1>
+                <p className="text-muted-foreground">
+                  Laden Sie PDFs und Dokumente hoch
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                onClick={() => router.push("/protokolle")}
+              >
+                <Home className="mr-2 h-4 w-4" />
+                Zur Startseite
+              </Button>
             </div>
 
             <Card>

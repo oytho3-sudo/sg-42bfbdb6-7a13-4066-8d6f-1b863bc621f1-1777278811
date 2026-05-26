@@ -1,4 +1,4 @@
- 
+/* eslint-disable @typescript-eslint/no-empty-object-type */
 export type Json =
   | string
   | number
@@ -23,6 +23,7 @@ export type Database = {
           file_size: number
           file_type: string
           id: string
+          shared_with_all: boolean | null
           uploaded_at: string
           user_id: string
         }
@@ -33,6 +34,7 @@ export type Database = {
           file_size: number
           file_type: string
           id?: string
+          shared_with_all?: boolean | null
           uploaded_at?: string
           user_id: string
         }
@@ -43,6 +45,7 @@ export type Database = {
           file_size?: number
           file_type?: string
           id?: string
+          shared_with_all?: boolean | null
           uploaded_at?: string
           user_id?: string
         }
