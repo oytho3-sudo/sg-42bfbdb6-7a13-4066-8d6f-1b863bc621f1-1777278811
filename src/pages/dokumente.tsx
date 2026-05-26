@@ -9,8 +9,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { FileText, Upload, Trash2, Download, Loader2, Home, Share2 } from "lucide-react";
+import { FileText, Upload, Trash2, Download, Loader2, Home, Share2, Users } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 
 interface Document {
   id: string;
@@ -20,6 +21,11 @@ interface Document {
   file_type: string;
   uploaded_at: string;
   description: string | null;
+  user_id: string;
+  shared_with_all: boolean;
+  profiles?: {
+    full_name: string | null;
+  };
 }
 
 export default function DokumentePage() {
@@ -30,21 +36,56 @@ export default function DokumentePage() {
   const [uploading, setUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [description, setDescription] = useState("");
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   useEffect(() => {
-    loadDocuments();
+    checkUserRole();
   }, []);
 
-  const loadDocuments = async () => {
+  const checkUserRole = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { data, error } = await supabase
+      setCurrentUserId(user.id);
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .single();
+
+      if (profile?.role === "Admin") {
+        setIsAdmin(true);
+      }
+
+      await loadDocuments(user.id, profile?.role === "Admin");
+    } catch (error: any) {
+      toast({
+        title: "Fehler",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const loadDocuments = async (userId: string, adminMode: boolean) => {
+    try {
+      let query = supabase
         .from("documents")
-        .select("*")
-        .eq("user_id", user.id)
+        .select(`
+          *,
+          profiles!documents_user_id_fkey(full_name)
+        `)
         .order("uploaded_at", { ascending: false });
+
+      // Admin sieht alle Dokumente, normale User nur eigene + freigegebene
+      if (!adminMode) {
+        query = query.or(`user_id.eq.${userId},shared_with_all.eq.true`);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       setDocuments(data ?? []);
@@ -135,7 +176,7 @@ export default function DokumentePage() {
 
       setSelectedFile(null);
       setDescription("");
-      loadDocuments();
+      await loadDocuments(user.id, isAdmin);
     } catch (error: any) {
       toast({
         title: "Upload fehlgeschlagen",
@@ -144,6 +185,34 @@ export default function DokumentePage() {
       });
     } finally {
       setUploading(false);
+    }
+  };
+
+  const handleToggleShare = async (doc: Document) => {
+    try {
+      const { error } = await supabase
+        .from("documents")
+        .update({ shared_with_all: !doc.shared_with_all })
+        .eq("id", doc.id);
+
+      if (error) throw error;
+
+      toast({
+        title: doc.shared_with_all ? "Freigabe entfernt" : "Freigegeben",
+        description: doc.shared_with_all 
+          ? "Dokument ist jetzt privat." 
+          : "Dokument ist jetzt für alle sichtbar.",
+      });
+
+      if (currentUserId) {
+        await loadDocuments(currentUserId, isAdmin);
+      }
+    } catch (error: any) {
+      toast({
+        title: "Fehler",
+        description: error.message,
+        variant: "destructive",
+      });
     }
   };
 
@@ -194,7 +263,9 @@ export default function DokumentePage() {
         description: "Dokument wurde entfernt.",
       });
 
-      loadDocuments();
+      if (currentUserId) {
+        await loadDocuments(currentUserId, isAdmin);
+      }
     } catch (error: any) {
       toast({
         title: "Löschen fehlgeschlagen",
@@ -210,6 +281,10 @@ export default function DokumentePage() {
     return (bytes / (1024 * 1024)).toFixed(1) + " MB";
   };
 
+  const isOwnDocument = (doc: Document) => {
+    return doc.user_id === currentUserId;
+  };
+
   return (
     <AuthGuard>
       <SEO
@@ -223,7 +298,7 @@ export default function DokumentePage() {
               <div>
                 <h1 className="text-3xl font-bold">Dokumente</h1>
                 <p className="text-muted-foreground">
-                  Laden Sie PDFs und Dokumente hoch
+                  {isAdmin ? "Alle Dokumente verwalten und freigeben" : "Laden Sie PDFs und Dokumente hoch"}
                 </p>
               </div>
               <Button
@@ -293,7 +368,9 @@ export default function DokumentePage() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Meine Dokumente</CardTitle>
+                <CardTitle>
+                  {isAdmin ? "Alle Dokumente" : "Dokumente"}
+                </CardTitle>
                 <CardDescription>
                   {documents.length} {documents.length === 1 ? "Dokument" : "Dokumente"}
                 </CardDescription>
@@ -307,7 +384,7 @@ export default function DokumentePage() {
                   <Alert>
                     <FileText className="h-4 w-4" />
                     <AlertDescription>
-                      Noch keine Dokumente hochgeladen.
+                      Noch keine Dokumente vorhanden.
                     </AlertDescription>
                   </Alert>
                 ) : (
@@ -320,7 +397,20 @@ export default function DokumentePage() {
                         <div className="flex items-center gap-4 flex-1 min-w-0">
                           <FileText className="h-8 w-8 text-primary shrink-0" />
                           <div className="flex-1 min-w-0">
-                            <p className="font-medium truncate">{doc.file_name}</p>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="font-medium truncate">{doc.file_name}</p>
+                              {doc.shared_with_all && (
+                                <Badge variant="secondary" className="shrink-0">
+                                  <Users className="h-3 w-3 mr-1" />
+                                  Freigegeben
+                                </Badge>
+                              )}
+                              {!isOwnDocument(doc) && (
+                                <Badge variant="outline" className="shrink-0">
+                                  Von: {doc.profiles?.full_name || "Unbekannt"}
+                                </Badge>
+                              )}
+                            </div>
                             <div className="text-sm text-muted-foreground space-y-1">
                               <p>{formatFileSize(doc.file_size)} · {new Date(doc.uploaded_at).toLocaleDateString("de-DE")}</p>
                               {doc.description && (
@@ -330,20 +420,34 @@ export default function DokumentePage() {
                           </div>
                         </div>
                         <div className="flex gap-2 shrink-0">
+                          {isAdmin && (
+                            <Button
+                              variant={doc.shared_with_all ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => handleToggleShare(doc)}
+                              title={doc.shared_with_all ? "Freigabe entfernen" : "Für alle freigeben"}
+                            >
+                              <Share2 className="h-4 w-4" />
+                            </Button>
+                          )}
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => handleDownload(doc)}
+                            title="Herunterladen"
                           >
                             <Download className="h-4 w-4" />
                           </Button>
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => handleDelete(doc)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          {(isAdmin || isOwnDocument(doc)) && (
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => handleDelete(doc)}
+                              title="Löschen"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
                         </div>
                       </div>
                     ))}
