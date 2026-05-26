@@ -301,7 +301,7 @@ export default function DokumentePage() {
               </div>
               <Button
                 variant="outline"
-                onClick={() => router.push("/protokolle")}
+                onClick={() => router.push("/")}
               >
                 <Home className="mr-2 h-4 w-4" />
                 Zur Startseite
