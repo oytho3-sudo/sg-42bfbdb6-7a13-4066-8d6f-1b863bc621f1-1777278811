@@ -4,7 +4,7 @@ import Link from "next/link";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { ThemeSwitch } from "@/components/ThemeSwitch";
-import { LogOut, Shield, User as UserIcon, Users } from "lucide-react";
+import { LogOut, Shield, User as UserIcon, Users, FileText } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 
 export function NavBar() {
@@ -64,7 +64,13 @@ export function NavBar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center gap-6">
-            {/* Left side navigation removed */}
+            <Link href="/protokolle" className="text-sm font-medium hover:text-primary transition-colors">
+              Protokolle
+            </Link>
+            <Link href="/dokumente" className="text-sm font-medium hover:text-primary transition-colors flex items-center gap-2">
+              <FileText className="h-4 w-4" />
+              Dokumente
+            </Link>
           </div>
 
           <div className="flex items-center gap-4">
