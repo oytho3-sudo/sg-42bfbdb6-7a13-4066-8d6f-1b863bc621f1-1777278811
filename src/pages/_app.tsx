@@ -19,6 +19,10 @@ export default function App({ Component, pageProps }: AppProps) {
     });
   }, []);
 
+  useEffect(() => {
+    (window as any).__GEMINI_API_KEY__ = 'AIzaSyDrGXqWrPvpGgMT_u7y72hsXx3gL9YZOUc';
+  }, []);
+
   const handleDismiss = () => {
     setRegistration(null);
   };
