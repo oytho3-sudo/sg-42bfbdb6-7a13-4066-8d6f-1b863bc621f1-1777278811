@@ -432,18 +432,15 @@ function Scanner({ onClose, targetRowId, teile, onInsertIntoRow, onAddAndInsert 
     try {
       const base64 = rawCanvas.toDataURL('image/jpeg', 0.92).split(',')[1];
 
-      const prompt = `Analyze this warehouse label image and extract product information.
+      const prompt = `Extract from this warehouse label:
+{"artikelnr":"<article number>","beschreibung":"<description>"}
 
-Return ONLY a valid JSON object with exactly this structure (no markdown, no explanation):
-{"artikelnr":"<article number>","beschreibung":"<product description>"}
-
-Extraction rules:
-- artikelnr: Look for "Artikel-Nr.:" or "Kred-Art-Nr.:" (e.g., "604-30600108" or "6ES7510-1DJ01-0AB0")
-- beschreibung: Product name/description, usually below "Kred-Art-Nr.:" (e.g., "Simatic ET 200SP CPU 1510SP-1PN")
-- If a field is not found, use empty string ""
-- IMPORTANT: Ignore all quantity information (Stk, QTY, Menge), storage locations (PE-/PF- numbers), dates, and UL-FILE numbers
-- Combine multiple lines for description if needed, max 60 characters
-- Return ONLY the JSON object, nothing else`;
+Rules:
+- artikelnr: Find "Artikel-Nr.:" or "Kred-Art-Nr." value
+- beschreibung: Product name (max 60 chars)
+- Ignore: Stk/QTY, PE-/PF- numbers, dates, UL-FILE
+- Return ONLY complete valid JSON, no markdown
+- IMPORTANT: Complete the entire JSON object before stopping`;
 
       const res = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
@@ -458,9 +455,10 @@ Extraction rules:
               ],
             }],
             generationConfig: {
-              temperature: 0.1,
-              maxOutputTokens: 512,
-              topP: 0.95,
+              temperature: 0,
+              maxOutputTokens: 1024,
+              topP: 1,
+              topK: 1,
             },
           }),
         }
