@@ -476,6 +476,8 @@ Extraction rules:
       setRawText(rawText);
 
       let fields: ExtractedFields = { artikelnr: '', beschreibung: '' };
+      
+      // Robuste JSON-Extraktion: Finde JSON-Block im Text
       const jsonStart = rawText.indexOf('{');
       const jsonEnd = rawText.lastIndexOf('}');
       const jsonOnly = jsonStart !== -1 && jsonEnd !== -1 ? rawText.slice(jsonStart, jsonEnd + 1) : '';
@@ -488,6 +490,7 @@ Extraction rules:
           beschreibung: String(p.beschreibung || '').trim(),
         };
       } catch {
+        // Fallback: klassische Regex-Extraktion
         fields = extractFields(rawText);
       }
 
