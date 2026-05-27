@@ -432,15 +432,9 @@ function Scanner({ onClose, targetRowId, teile, onInsertIntoRow, onAddAndInsert 
     try {
       const base64 = rawCanvas.toDataURL('image/jpeg', 0.92).split(',')[1];
 
-      const prompt = `Extract from this warehouse label:
-{"artikelnr":"<article number>","beschreibung":"<description>"}
-
-Rules:
-- artikelnr: Find "Artikel-Nr.:" or "Kred-Art-Nr." value
-- beschreibung: Product name (max 60 chars)
-- Ignore: Stk/QTY, PE-/PF- numbers, dates, UL-FILE
-- Return ONLY complete valid JSON, no markdown
-- IMPORTANT: Complete the entire JSON object before stopping`;
+      const prompt = `Extract: {"artikelnr":"<value>","beschreibung":"<value>"}
+Find "Artikel-Nr.:" or "Kred-Art-Nr." for artikelnr. Product name for beschreibung (max 60 chars).
+Ignore: Stk, QTY, PE-/PF-, dates, UL-FILE. Return complete valid JSON only.`;
 
       const res = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
@@ -456,9 +450,10 @@ Rules:
             }],
             generationConfig: {
               temperature: 0,
-              maxOutputTokens: 1024,
+              maxOutputTokens: 2048,
               topP: 1,
               topK: 1,
+              candidateCount: 1,
             },
           }),
         }
