@@ -425,8 +425,15 @@ function Scanner({ onClose, targetRowId, teile, onInsertIntoRow, onAddAndInsert 
 
     // ── Gemini Vision API ─────────────────────────────────────────────────────
     const GEMINI_API_KEY = (window as any).__GEMINI_API_KEY__ || process.env.NEXT_PUBLIC_GEMINI_API_KEY || '';
+    
+    console.log('[Gemini Debug] API-Key vorhanden:', !!GEMINI_API_KEY);
+    console.log('[Gemini Debug] window.__GEMINI_API_KEY__:', !!(window as any).__GEMINI_API_KEY__);
+    console.log('[Gemini Debug] process.env.NEXT_PUBLIC_GEMINI_API_KEY:', !!process.env.NEXT_PUBLIC_GEMINI_API_KEY);
+    
     if (!GEMINI_API_KEY) {
-      setStatus('⚠️ Kein Gemini API-Key gesetzt. Bitte __GEMINI_API_KEY__ im Fenster definieren.');
+      const msg = '⚠️ Kein Gemini API-Key gesetzt. Bitte NEXT_PUBLIC_GEMINI_API_KEY in Environment-Variablen setzen.';
+      console.error('[Gemini Error]', msg);
+      setStatus(msg);
       return;
     }
 
@@ -436,6 +443,7 @@ function Scanner({ onClose, targetRowId, teile, onInsertIntoRow, onAddAndInsert 
     try {
       // Bild als base64 exportieren
       const base64 = rawCanvas.toDataURL('image/jpeg', 0.92).split(',')[1];
+      console.log('[Gemini Debug] Bild-Base64-Länge:', base64.length);
 
       const prompt = `Du analysierst ein Produktetikett oder einen Lieferschein.
 Extrahiere folgende Felder als JSON (nur JSON, kein Kommentar, kein Markdown):
@@ -446,6 +454,7 @@ Extrahiere folgende Felder als JSON (nur JSON, kein Kommentar, kein Markdown):
 }
 Wenn ein Feld nicht erkennbar ist, leere Zeichenkette verwenden. Nur JSON zurückgeben.`;
 
+      console.log('[Gemini Debug] Sende Anfrage an Gemini API...');
       const res = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
         {
@@ -463,13 +472,19 @@ Wenn ein Feld nicht erkennbar ist, leere Zeichenkette verwenden. Nur JSON zurüc
         }
       );
 
+      console.log('[Gemini Debug] Response Status:', res.status);
+
       if (!res.ok) {
         const errBody = await res.text();
+        console.error('[Gemini Error] API-Fehler:', errBody);
         throw new Error(`Gemini API Fehler ${res.status}: ${errBody}`);
       }
 
       const json = await res.json();
+      console.log('[Gemini Debug] Antwort erhalten:', json);
+      
       const rawText = json.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+      console.log('[Gemini Debug] Extrahierter Text:', rawText);
       setRawText(rawText);
 
       // JSON aus Antwort parsen (robuster Strip)
@@ -482,15 +497,21 @@ Wenn ein Feld nicht erkennbar ist, leere Zeichenkette verwenden. Nur JSON zurüc
           beschreibung: String(parsed.beschreibung || '').trim(),
           stk:          String(parsed.stk          || '1').trim(),
         };
-      } catch {
+        console.log('[Gemini Debug] Extrahierte Felder:', fields);
+      } catch (parseErr) {
+        console.warn('[Gemini Debug] JSON-Parse fehlgeschlagen, verwende Fallback-Extraktion');
         // Fallback: klassische Regex-Extraktion auf Rohtext
         fields = extractFields(rawText);
+        console.log('[Gemini Debug] Fallback-Felder:', fields);
       }
 
       setExtracted(fields);
       setStep('result');
     } catch (err: any) {
-      setStatus('⚠️ Gemini Fehler: ' + err.message);
+      console.error('[Gemini Error] Vollständiger Fehler:', err);
+      const errorMsg = '⚠️ Gemini Fehler: ' + err.message;
+      setStatus(errorMsg);
+      alert(errorMsg); // Zusätzlich als Alert anzeigen
     }
   };
 
