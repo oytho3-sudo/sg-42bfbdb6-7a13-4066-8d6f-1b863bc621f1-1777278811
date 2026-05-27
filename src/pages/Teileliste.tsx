@@ -384,8 +384,14 @@ function Scanner({ onClose, targetRowId, teile, onInsertIntoRow, onAddAndInsert 
   const processImage = async (img: HTMLImageElement, cr: CropRect | null) => {
     setStep('process'); setStatus('⏳ Bild wird vorbereitet…');
 
-    const sx = cr ? cr.x : 0, sy = cr ? cr.y : 0;
-    const sw = cr ? cr.w : img.naturalWidth, sh = cr ? cr.h : img.naturalHeight;
+
+    const scale = (cropCanvasRef.current as any)?._scale || 1;
+    const sx = cr ? Math.max(0, Math.round(cr.x / scale)) : 0;
+    const sy = cr ? Math.max(0, Math.round(cr.y / scale)) : 0;
+    const maxW = img.naturalWidth - sx;
+    const maxH = img.naturalHeight - sy;
+    const sw = cr ? Math.min(maxW, Math.max(1, Math.round(cr.w / scale))) : img.naturalWidth;
+    const sh = cr ? Math.min(maxH, Math.max(1, Math.round(cr.h / scale))) : img.naturalHeight;
     const sc = sw > 1200 ? 1200 / sw : 1;
     const targetW = Math.round(sw * sc), targetH = Math.round(sh * sc);
 
@@ -411,44 +417,92 @@ function Scanner({ onClose, targetRowId, teile, onInsertIntoRow, onAddAndInsert 
       } catch (_) {}
     }
 
-    // ── OCR/Barcode Verarbeitung (offline) ────────────────────────────────────
+    // ── OCR/Barcode Verarbeitung ──────────────────────────────────────────────
     if (barcodeNr) {
       setExtracted({ artikelnr: barcodeNr, beschreibung: '', stk: '1' });
       setRawText(''); setStep('result'); return;
     }
 
-    setStatus('⏳ Offline-Texterkennung…');
+    // ── Gemini Vision API ─────────────────────────────────────────────────────
+    const GEMINI_API_KEY = (window as any).__GEMINI_API_KEY__ || '';
+    if (!GEMINI_API_KEY) {
+      setStatus('⚠️ Kein Gemini API-Key gesetzt. Bitte __GEMINI_API_KEY__ im Fenster definieren.');
+      return;
+    }
+
+    setStatus('⏳ KI-Analyse mit Gemini…');
     await new Promise(r => setTimeout(r, 30));
 
-    const work = document.createElement('canvas');
-    work.width = targetW; work.height = targetH;
-    const wctx = work.getContext('2d')!;
-    wctx.drawImage(img, sx, sy, sw, sh, 0, 0, targetW, targetH);
-    enhanceImage(wctx, targetW, targetH);
-
-    const Tesseract = (window as any).Tesseract;
-    if (!Tesseract) {
-      setStatus('⚠️ Keine Internetverbindung und Tesseract nicht geladen.'); return;
-    }
     try {
-      const opts = { tessedit_pageseg_mode: '6', preserve_interword_spaces: '1' };
-      const [res1, res2] = await Promise.all([
-        Tesseract.recognize(rawCanvas, 'deu+eng', { logger: (m: any) => { if (m.status === 'recognizing text') setStatus(`⏳ OCR: ${Math.round(m.progress * 100)}%`); }, ...opts }),
-        Tesseract.recognize(work, 'deu+eng', { logger: () => {}, ...opts }),
-      ]);
-      const raw1 = res1.data.text.trim(), raw2 = res2.data.text.trim();
-      const raw = raw1.length >= raw2.length ? raw1 : raw2;
-      if (!raw) { setStatus('⚠️ Kein Text erkannt.'); return; }
-      const fields = extractFields(raw);
-      setExtracted(fields); setRawText(raw); setStep('result');
+      // Bild als base64 exportieren
+      const base64 = rawCanvas.toDataURL('image/jpeg', 0.92).split(',')[1];
+
+      const prompt = `Du analysierst ein Produktetikett oder einen Lieferschein.
+Extrahiere folgende Felder als JSON (nur JSON, kein Kommentar, kein Markdown):
+{
+  "artikelnr": "<Artikelnummer, z.B. 12345 oder AB-678>",
+  "beschreibung": "<Produktbezeichnung, möglichst kurz und präzise>",
+  "stk": "<Menge als Zahl, Standard 1>"
+}
+Wenn ein Feld nicht erkennbar ist, leere Zeichenkette verwenden. Nur JSON zurückgeben.`;
+
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{
+              parts: [
+                { text: prompt },
+                { inline_data: { mime_type: 'image/jpeg', data: base64 } },
+              ],
+            }],
+            generationConfig: { temperature: 0.1, maxOutputTokens: 256 },
+          }),
+        }
+      );
+
+      if (!res.ok) {
+        const errBody = await res.text();
+        throw new Error(`Gemini API Fehler ${res.status}: ${errBody}`);
+      }
+
+      const json = await res.json();
+      const rawText = json.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+      setRawText(rawText);
+
+      // JSON aus Antwort parsen (robuster Strip)
+      const clean = rawText.replace(/```json|```/g, '').trim();
+      let fields: ExtractedFields = { artikelnr: '', beschreibung: '', stk: '1' };
+      try {
+        const parsed = JSON.parse(clean);
+        fields = {
+          artikelnr:    String(parsed.artikelnr    || '').trim(),
+          beschreibung: String(parsed.beschreibung || '').trim(),
+          stk:          String(parsed.stk          || '1').trim(),
+        };
+      } catch {
+        // Fallback: klassische Regex-Extraktion auf Rohtext
+        fields = extractFields(rawText);
+      }
+
+      setExtracted(fields);
+      setStep('result');
     } catch (err: any) {
-      setStatus('⚠️ OCR Fehler: ' + err.message);
+      setStatus('⚠️ Gemini Fehler: ' + err.message);
     }
   };
 
   const handleConfirm = async () => {
-    const img = origImageRef.current!;
-    await processImage(img, cropRectRef.current);
+    const img = origImageRef.current;
+    if (!img) { setStatus('⚠️ Kein Bild geladen.'); return; }
+    try {
+      await processImage(img, cropRectRef.current);
+    } catch (err: any) {
+      setStep('crop');
+      setStatus('⚠️ Verarbeitung fehlgeschlagen: ' + (err?.message || 'Unbekannter Fehler'));
+    }
   };
 
   const sbtn = (bg: string): React.CSSProperties => ({ background: bg, color: '#fff', border: 'none', padding: '6px 14px', borderRadius: 4, fontSize: 11, cursor: 'pointer', fontWeight: 'bold', minHeight: 36, touchAction: 'manipulation' });
@@ -459,7 +513,15 @@ function Scanner({ onClose, targetRowId, teile, onInsertIntoRow, onAddAndInsert 
         <span style={{ flex: 1, fontSize: 14, fontWeight: 'bold' }}>📷 Scanner</span>
         <button onClick={onClose} style={sbtn('#555')}>✕ Schließen</button>
       </div>
-      <div style={{ flex: 1, overflowY: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={{
+        flex: 1,
+        overflowY: 'auto',
+        padding: 16,
+        paddingBottom: 'max(120px, calc(env(safe-area-inset-bottom) + 120px))',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 14,
+      }}>
 
         {step === 'source' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -496,10 +558,6 @@ function Scanner({ onClose, targetRowId, teile, onInsertIntoRow, onAddAndInsert 
               onTouchMove={e => { e.preventDefault(); if (!isDraggingRef.current) return; updateCrop(getCanvasPos(e)); }}
               onTouchEnd={() => { isDraggingRef.current = false; }}
             />
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button onClick={() => { cropRectRef.current = null; drawCrop(); }} style={sbtn('#555')}>↺ Zurücksetzen</button>
-              <button onClick={handleConfirm} style={{ ...sbtn('#8e24aa'), padding: '10px 24px', fontSize: 12 }}>✓ Erkennen</button>
-            </div>
           </div>
         )}
 
@@ -543,6 +601,25 @@ function Scanner({ onClose, targetRowId, teile, onInsertIntoRow, onAddAndInsert 
           </div>
         )}
       </div>
+      {step === 'crop' && (
+        <div style={{
+          position: 'fixed',
+          left: 12,
+          right: 12,
+          bottom: 'max(12px, calc(env(safe-area-inset-bottom) + 12px))',
+          zIndex: 100001,
+          display: 'flex',
+          gap: 10,
+          justifyContent: 'center',
+          background: 'rgba(0,0,0,0.82)',
+          border: '1px solid #555',
+          borderRadius: 10,
+          padding: 10,
+        }}>
+          <button onClick={() => { cropRectRef.current = null; drawCrop(); }} style={sbtn('#555')}>↺ Zurücksetzen</button>
+          <button onClick={handleConfirm} style={{ ...sbtn('#8e24aa'), padding: '10px 24px', fontSize: 12 }}>✓ Erkennen</button>
+        </div>
+      )}
     </div>
   );
 }
@@ -606,14 +683,8 @@ export default function Teileliste() {
     return () => ro.disconnect();
   }, []);
 
-  // Tesseract laden
-  useEffect(() => {
-    if (!(window as any).Tesseract) {
-      const s = document.createElement('script');
-      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.1/tesseract.min.js';
-      document.head.appendChild(s);
-    }
-  }, []);
+  // Gemini API-Key: window.__GEMINI_API_KEY__ = 'DEIN_KEY' setzen
+  // (z.B. in _app.tsx / layout.tsx als <script> oder per NEXT_PUBLIC_ env-Variable)
 
   // ── Toast ──────────────────────────────────────────────────────────────────
   const showToast = (msg: string, type: 'success' | 'error') => {
