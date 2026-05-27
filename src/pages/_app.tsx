@@ -20,7 +20,7 @@ export default function App({ Component, pageProps }: AppProps) {
   }, []);
 
   useEffect(() => {
-    (window as any).__GEMINI_API_KEY__ = 'AIzaSyA1Lne9j_FN3KRJEyM-863oGXaSCgmsHfQ';
+    (window as any).__GEMINI_API_KEY__ = process.env.NEXT_PUBLIC_GEMINI_API_KEY || '';
   }, []);
 
   const handleDismiss = () => {
