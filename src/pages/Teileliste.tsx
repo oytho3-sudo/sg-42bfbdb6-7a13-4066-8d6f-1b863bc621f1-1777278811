@@ -98,7 +98,7 @@ interface SaveData {
 }
 
 interface CropRect { x: number; y: number; w: number; h: number; }
-interface ExtractedFields { artikelnr: string; beschreibung: string; stk: string; }
+interface ExtractedFields { artikelnr: string; beschreibung: string; }
 type ScanStep = 'source' | 'crop' | 'process' | 'result';
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -111,7 +111,7 @@ function buildFileName(ext: string): string {
 
 function extractFields(text: string): ExtractedFields {
   const rawLines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-  let artikelnr = '', beschreibung = '', stk = '1';
+  let artikelnr = '', beschreibung = '';
   const lines = rawLines
     .map(l => l.replace(/Lagerplatz\s*:.*$/i, '').replace(/PE-\d+[-\d]*/gi, '').trim())
     .filter(l => l.length > 0);
@@ -137,11 +137,7 @@ function extractFields(text: string): ExtractedFields {
     }
   }
   beschreibung = beschreibung.replace(/\s{2,}/g, ' ').replace(/^[^A-Za-zÄÖÜäöüß]+/, '').trim();
-  for (const line of rawLines) {
-    const m = line.match(/(?:Menge|QTY|St[uü]ck?\.?)[:.]?\s*(\d+)/i);
-    if (m) { stk = m[1]; break; }
-  }
-  return { artikelnr: artikelnr || '', beschreibung: beschreibung || '', stk: stk || '1' };
+  return { artikelnr: artikelnr || '', beschreibung: beschreibung || '' };
 }
 
 function boxBlur(imageData: ImageData, w: number, h: number, r: number): Uint8ClampedArray {
@@ -419,7 +415,7 @@ function Scanner({ onClose, targetRowId, teile, onInsertIntoRow, onAddAndInsert 
 
     // ── OCR/Barcode Verarbeitung ──────────────────────────────────────────────
     if (barcodeNr) {
-      setExtracted({ artikelnr: barcodeNr, beschreibung: '', stk: '1' });
+      setExtracted({ artikelnr: barcodeNr, beschreibung: '' });
       setRawText(''); setStep('result'); return;
     }
 
@@ -434,12 +430,20 @@ function Scanner({ onClose, targetRowId, teile, onInsertIntoRow, onAddAndInsert 
     await new Promise(r => setTimeout(r, 30));
 
     try {
-      // Bild als base64 exportieren
       const base64 = rawCanvas.toDataURL('image/jpeg', 0.92).split(',')[1];
 
-      const prompt = `Analysiere dieses Bild. Antworte NUR mit diesem JSON, nichts sonst, kein Markdown, keine Backticks, kein Kommentar:
-{"artikelnr":"","beschreibung":"","stk":"1"}
-Ersetze die leeren Felder durch die erkannten Werte aus dem Bild. artikelnr = Artikelnummer oder Bestellnummer. beschreibung = Produktname. stk = Menge als Zahl.`;
+      const prompt = `Analyze this warehouse label image and extract product information.
+
+Return ONLY a valid JSON object with exactly this structure (no markdown, no explanation):
+{"artikelnr":"<article number>","beschreibung":"<product description>"}
+
+Extraction rules:
+- artikelnr: Look for "Artikel-Nr.:" or "Kred-Art-Nr.:" (e.g., "604-30600108" or "6ES7510-1DJ01-0AB0")
+- beschreibung: Product name/description, usually below "Kred-Art-Nr.:" (e.g., "Simatic ET 200SP CPU 1510SP-1PN")
+- If a field is not found, use empty string ""
+- IMPORTANT: Ignore all quantity information (Stk, QTY, Menge), storage locations (PE-/PF- numbers), dates, and UL-FILE numbers
+- Combine multiple lines for description if needed, max 60 characters
+- Return ONLY the JSON object, nothing else`;
 
       const res = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
@@ -453,7 +457,11 @@ Ersetze die leeren Felder durch die erkannten Werte aus dem Bild. artikelnr = Ar
                 { inline_data: { mime_type: 'image/jpeg', data: base64 } },
               ],
             }],
-            generationConfig: { temperature: 0.1, maxOutputTokens: 256, responseMimeType: 'application/json' },
+            generationConfig: {
+              temperature: 0.1,
+              maxOutputTokens: 512,
+              topP: 0.95,
+            },
           }),
         }
       );
@@ -467,17 +475,20 @@ Ersetze die leeren Felder durch die erkannten Werte aus dem Bild. artikelnr = Ar
       const rawText = json.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
       setRawText(rawText);
 
-      // JSON aus Antwort parsen – mehrere Strategien
-      let fields: ExtractedFields = { artikelnr: '', beschreibung: '', stk: '1' };
-      // Strategie 1: direkt parsen
-      try { const p = JSON.parse(rawText); fields = { artikelnr: String(p.artikelnr||'').trim(), beschreibung: String(p.beschreibung||'').trim(), stk: String(p.stk||'1').trim() }; }
-      catch {
-        // Strategie 2: JSON-Block per Regex extrahieren
-        try {
-          const m = rawText.match(/\{[^}]+\}/s);
-          if (m) { const p = JSON.parse(m[0]); fields = { artikelnr: String(p.artikelnr||'').trim(), beschreibung: String(p.beschreibung||'').trim(), stk: String(p.stk||'1').trim() }; }
-          else { fields = extractFields(rawText); }
-        } catch { fields = extractFields(rawText); }
+      let fields: ExtractedFields = { artikelnr: '', beschreibung: '' };
+      const jsonStart = rawText.indexOf('{');
+      const jsonEnd = rawText.lastIndexOf('}');
+      const jsonOnly = jsonStart !== -1 && jsonEnd !== -1 ? rawText.slice(jsonStart, jsonEnd + 1) : '';
+
+      try {
+        if (!jsonOnly) throw new Error('kein JSON gefunden');
+        const p = JSON.parse(jsonOnly);
+        fields = {
+          artikelnr:    String(p.artikelnr    || '').trim(),
+          beschreibung: String(p.beschreibung || '').trim(),
+        };
+      } catch {
+        fields = extractFields(rawText);
       }
 
       setExtracted(fields);
@@ -564,7 +575,7 @@ Ersetze die leeren Felder durch die erkannten Werte aus dem Bild. artikelnr = Ar
         {step === 'result' && extracted && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <div style={{ background: '#2a2a4e', border: '1px solid #8e24aa', borderRadius: 6, padding: 10, display: 'grid', gridTemplateColumns: '110px 1fr', gap: '4px 10px' }}>
-              {[['Beschreibung:', extracted.beschreibung || '—', '#fff'], ['Artikel-Nr.:', extracted.artikelnr || '—', '#c084fc'], ['Stk.:', extracted.stk || '—', '#fff']].map(([lbl, val, color]) => (
+              {[['Beschreibung:', extracted.beschreibung || '—', '#fff'], ['Artikel-Nr.:', extracted.artikelnr || '—', '#c084fc']].map(([lbl, val, color]) => (
                 <><span key={lbl + 'l'} style={{ color: '#aaa', fontSize: 10, alignSelf: 'center' }}>{lbl}</span><span key={lbl + 'v'} style={{ color, fontSize: 11, fontWeight: 'bold', wordBreak: 'break-all' }}>{val}</span></>
               ))}
             </div>
@@ -573,9 +584,9 @@ Ersetze die leeren Felder durch die erkannten Werte aus dem Bild. artikelnr = Ar
                 <>
                   <button onClick={() => { onInsertIntoRow(targetRowId, extracted); onClose(); }} style={{ ...sbtn('#2a7a2a'), padding: '10px 20px', fontSize: 13 }}>✓ Eintragen</button>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                    {(['beschreibung', 'artikelnr', 'stk'] as const).map((f, i) => (
+                    {(['beschreibung', 'artikelnr'] as const).map((f, i) => (
                       <button key={f} onClick={() => onInsertIntoRow(targetRowId, { ...extracted, [f]: extracted[f] })} style={sbtn('#444')}>
-                        ✎ Nur {['Beschreibung', 'Artikel-Nr.', 'Stk.'][i]}
+                        ✎ Nur {['Beschreibung', 'Artikel-Nr.'][i]}
                       </button>
                     ))}
                   </div>
@@ -699,12 +710,12 @@ export default function Teileliste() {
       ...t,
       beschreibung: fields.beschreibung || t.beschreibung,
       artikelnr:    fields.artikelnr    || t.artikelnr,
-      stk:          fields.stk          || t.stk,
+      stk:          t.stk,
     }));
 
   const addAndInsert = (fields: ExtractedFields) => {
     const id = nextIdRef.current++;
-    setTeile(prev => [...prev, { id, pos: String(prev.length + 1), beschreibung: fields.beschreibung || '', artikelnr: fields.artikelnr || '', stk: fields.stk || '' }]);
+    setTeile(prev => [...prev, { id, pos: String(prev.length + 1), beschreibung: fields.beschreibung || '', artikelnr: fields.artikelnr || '', stk: '' }]);
   };
 
   // ── JSON I/O ───────────────────────────────────────────────────────────────
