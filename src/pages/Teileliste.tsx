@@ -424,7 +424,7 @@ function Scanner({ onClose, targetRowId, teile, onInsertIntoRow, onAddAndInsert 
     }
 
     // ── Gemini Vision API ─────────────────────────────────────────────────────
-    const GEMINI_API_KEY = (window as any).__GEMINI_API_KEY__ || '';
+    const GEMINI_API_KEY = (window as any).__GEMINI_API_KEY__ || process.env.NEXT_PUBLIC_GEMINI_API_KEY || '';
     if (!GEMINI_API_KEY) {
       setStatus('⚠️ Kein Gemini API-Key gesetzt. Bitte __GEMINI_API_KEY__ im Fenster definieren.');
       return;
