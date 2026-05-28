@@ -45,14 +45,14 @@ export default function Home() {
                 </Button>
               </Link>
 
-              <Link href="/Teileliste">
+              <Link href="/Scan_Tab_G">
                 <Button 
                   size="lg" 
                   variant="outline"
                   className="w-full sm:w-auto text-lg px-8 py-6 border-2 hover:bg-magenta/10 hover:border-magenta shadow-lg hover:shadow-xl transition-all"
                 >
                   <FileText className="mr-2 h-5 w-5" />
-                  Teileliste
+                  Scanner
                 </Button>
               </Link>
             </div>
