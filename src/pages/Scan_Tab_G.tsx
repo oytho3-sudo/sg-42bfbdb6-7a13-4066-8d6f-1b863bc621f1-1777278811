@@ -22,7 +22,6 @@ interface TableEntry {
 }
 
 export default function MultiScanner() {
-  // ── States ────────────────────────────────────────────────────────────
   const [filesArray, setFilesArray] = useState<FileEntry[]>([]);
   const [savedFiles, setSavedFiles] = useState<SavedFile[]>([]);
   const [progressVisible, setProgressVisible] = useState(false);
@@ -43,7 +42,6 @@ export default function MultiScanner() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
-  // ── Initialisierung & LocalStorage ────────────────────────────────────
   useEffect(() => {
     try {
       const stored = localStorage.getItem('gerlieva_scanner_files');
@@ -52,7 +50,6 @@ export default function MultiScanner() {
       console.error(e);
     }
 
-    // Tesseract Skript dynamisch laden, falls noch nicht vorhanden
     if (typeof Tesseract === 'undefined') {
       const script = document.createElement('script');
       script.src = 'https://unpkg.com/tesseract.js@4.1.4/dist/tesseract.min.js';
@@ -65,7 +62,6 @@ export default function MultiScanner() {
     setScanDisabled(filesArray.length === 0);
   }, [filesArray]);
 
-  // ── Toast & Fehler Hilfsfunktionen ────────────────────────────────────
   const showToast = (msg: string, color?: string) => {
     const el = document.getElementById('toast');
     if (el) {
@@ -81,7 +77,6 @@ export default function MultiScanner() {
     setTimeout(() => { setErrorMsg(''); }, 10000);
   };
 
-  // ── Dateien verarbeiten ───────────────────────────────────────────────
   const addFiles = (files: FileList | null) => {
     if (!files) return;
     Array.from(files).forEach(file => {
@@ -105,7 +100,6 @@ export default function MultiScanner() {
     setFilesArray(prev => prev.filter(f => f.id !== id));
   };
 
-  // Drag & Drop Handlers
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     if (dropZoneRef.current) {
@@ -130,7 +124,6 @@ export default function MultiScanner() {
     addFiles(e.dataTransfer.files);
   };
 
-  // ── OCR Texterkennung ─────────────────────────────────────────────────
   const handleScan = async () => {
     if (!filesArray.length) return;
     setErrorMsg('');
@@ -186,7 +179,6 @@ export default function MultiScanner() {
     }, 100);
   };
 
-  // ── Tabellen-Logik ─────────────────────────────────────────────────────
   const buildTable = (textToProcess: string) => {
     if (!textToProcess.trim()) return;
 
@@ -239,7 +231,6 @@ export default function MultiScanner() {
     showToast('Funktion "In Teileliste übertragen" ist aktuell noch nicht aktiv.', '#1a2744');
   };
 
-  // ── Speichern als JSON ──────────────────────────────────────────────────
   const saveJson = () => {
     if (tableEntries.length === 0) {
       showToast('Keine Tabellendaten zum Speichern vorhanden.', '#c0392b');
@@ -267,7 +258,6 @@ export default function MultiScanner() {
     showToast('✅ .json-Datei heruntergeladen!');
   };
 
-  // ── Speichern als TXT ───────────────────────────────────────────────────
   const saveTxt = () => {
     const txt = resultText.trim();
     if (!txt) { showToast('Kein Text vorhanden.', '#c0392b'); return; }
@@ -318,7 +308,6 @@ export default function MultiScanner() {
     showToast('Datei gelöscht.', '#888');
   };
 
-  // ── Kamera-Logik ──────────────────────────────────────────────────────
   const openCam = async () => {
     try {
       setCameraActive(true);
@@ -361,7 +350,6 @@ export default function MultiScanner() {
 
   return (
     <>
-      {/* Globale Styles injizieren, um das CSS 1:1 zu behalten */}
       <style>{`
         body { font-family: Arial, sans-serif; font-size: 13px; background: #f5f5f5; color: #000; min-height: 100vh; padding-top: 52px; margin:0; }
         @media print { .no-print { display:none !important; } body { padding-top:0; background:#fff; } .print-container { box-shadow:none; border-radius:0; padding:8px; } .toolbar { display:none !important; } th, td { font-size:9px !important; padding:2px 4px !important; } textarea { font-size:9px !important; } }
@@ -526,7 +514,7 @@ export default function MultiScanner() {
         </div>
       </div>
 
-      <div id="camera-wrap" className={cameraActive ? 'active' : ''} style={{ display: cameraActive ? 'flex' : 'none', position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', zIndex: 8000, flexDirection: 'column', alignItems: 'center', justifyCenter: 'center', gap: '12px', padding: '16px', justifyContent: 'center' }}>
+      <div id="camera-wrap" className={cameraActive ? 'active' : ''} style={{ display: cameraActive ? 'flex' : 'none', position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', zIndex: 8000, flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px', padding: '16px' }}>
         <video id="video-el" ref={videoRef} autoPlay playsInline style={{ maxWidth: '100%', maxHeight: '65vh', border: '2px solid #fff', borderRadius: '4px' }}></video>
         <canvas id="snap-canvas" ref={canvasRef} style={{ display: 'none' }}></canvas>
         <div className="cam-controls" style={{ display: 'flex', gap: '10px' }}>
