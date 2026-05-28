@@ -183,7 +183,7 @@ export default function MultiScanner() {
     if (!textToProcess.trim()) return;
 
     const blocks = textToProcess.split(/--- DATEI:/i);
-    let entries: TableEntry[] = [];
+    const entries: TableEntry[] = [];
 
     blocks.forEach(block => {
       if (!block.trim()) return;
@@ -196,7 +196,7 @@ export default function MultiScanner() {
           if (lines[i].match(/Kred[-.\s]*Art[-.\s]*Nr/i)) {
             if (lines[i + 1]) beschreibung = lines[i + 1];
           } else {
-            let inline = lines[i].replace(/Kred[-.\s]*Art:?/i, '').trim();
+            const inline = lines[i].replace(/Kred[-.\s]*Art:?/i, '').trim();
             if (inline.length > 2) beschreibung = inline;
             else if (lines[i + 1]) beschreibung = lines[i + 1];
           }
