@@ -228,7 +228,36 @@ export default function MultiScanner() {
   };
 
   const transferList = () => {
-    showToast('Funktion "In Teileliste übertragen" ist aktuell noch nicht aktiv.', '#1a2744');
+    if (tableEntries.length === 0) {
+      showToast('Keine Daten zum Übertragen vorhanden.', '#c0392b');
+      return;
+    }
+
+    try {
+      // Daten in localStorage speichern für Import im Servicebericht
+      const dataToTransfer = tableEntries.map((entry, index) => ({
+        pos: String(index + 1),
+        beschreibung: entry.desc,
+        teilenummer: entry.artNr,
+        stk: '1'
+      }));
+
+      localStorage.setItem('gerlieva_scanner_transfer', JSON.stringify({
+        data: dataToTransfer,
+        timestamp: new Date().toISOString()
+      }));
+
+      showToast(`✅ ${tableEntries.length} Artikel bereit zum Übertragen. Öffne jetzt den Servicebericht.`, '#1a7a3a');
+
+      // Optional: Nach 2 Sekunden zum Servicebericht navigieren
+      setTimeout(() => {
+        if (confirm('Möchtest du jetzt zum Servicebericht wechseln?')) {
+          window.location.href = '/ServiceberichtPage';
+        }
+      }, 2000);
+    } catch (err: unknown) {
+      showToast('Fehler beim Übertragen: ' + (err as Error).message, '#c0392b');
+    }
   };
 
   const saveJson = () => {

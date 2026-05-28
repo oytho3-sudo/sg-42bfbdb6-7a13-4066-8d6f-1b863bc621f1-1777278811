@@ -631,6 +631,45 @@ export default function ServiceberichtPage() {
     return () => ro.disconnect();
   }, []);
 
+  // Prüfe beim Laden, ob Scanner-Daten zum Import vorhanden sind
+  useEffect(() => {
+    try {
+      const transferData = localStorage.getItem('gerlieva_scanner_transfer');
+      if (transferData) {
+        const parsed = JSON.parse(transferData);
+        const importedData = parsed.data as MaterialRow[];
+        
+        if (importedData && importedData.length > 0) {
+          const confirmed = window.confirm(
+            `Scanner-Daten gefunden: ${importedData.length} Artikel.\n\nMöchtest du diese in die Teileliste übernehmen?`
+          );
+          
+          if (confirmed) {
+            setForm(f => {
+              const newMaterial = [...f.material];
+              // Füge die importierten Daten ein (überschreibe leere Zeilen)
+              importedData.forEach((item, i) => {
+                if (i < newMaterial.length) {
+                  newMaterial[i] = item;
+                }
+              });
+              return { ...f, material: newMaterial };
+            });
+            
+            // Lösche die Transfer-Daten nach erfolgreichem Import
+            localStorage.removeItem('gerlieva_scanner_transfer');
+            showToast(`✅ ${importedData.length} Artikel erfolgreich importiert!`, 'success');
+          } else {
+            // Benutzer hat abgelehnt - Daten bleiben für späteren Import
+            showToast('Import abgebrochen. Daten bleiben gespeichert.', 'success');
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Fehler beim Laden der Scanner-Daten:', err);
+    }
+  }, []);
+
   const showToast = (msg: string, type: 'success' | 'error') => {
     setToast({ msg, type, visible: true });
     setTimeout(() => setToast(p => ({ ...p, visible: false })), 2500);
