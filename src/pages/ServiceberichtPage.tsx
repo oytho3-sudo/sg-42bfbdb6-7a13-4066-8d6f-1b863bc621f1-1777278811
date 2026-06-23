@@ -1,6 +1,38 @@
 'use client';
 
-import { useRef, useState, useEffect, useCallback } from 'react';
+import { useRef, useState, useEffect, useCallback, useMemo } from 'react';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Artikelliste – wird einmalig aus der TXT-Datei geladen
+// Format: "TEILENUMMER\tBESCHREIBUNG" pro Zeile
+// ═══════════════════════════════════════════════════════════════════════════════
+
+type ArtikelEntry = { teilenummer: string; beschreibung: string };
+
+// Globaler Cache damit die Datei nur einmal geparst wird
+let _artikelCache: ArtikelEntry[] | null = null;
+
+async function ladeArtikel(): Promise<ArtikelEntry[]> {
+  if (_artikelCache) return _artikelCache;
+  try {
+    const res = await fetch('/Artikel_ERP.txt');
+    const text = await res.text();
+    _artikelCache = text
+      .split('\n')
+      .map(line => {
+        const parts = line.split('\t');
+        if (parts.length < 2) return null;
+        const teilenummer = parts[0].trim();
+        const beschreibung = parts.slice(1).join('\t').trim();
+        if (!teilenummer || !beschreibung) return null;
+        return { teilenummer, beschreibung };
+      })
+      .filter(Boolean) as ArtikelEntry[];
+    return _artikelCache;
+  } catch {
+    return [];
+  }
+}
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // i18n – Übersetzungen / Translations / Traductions
@@ -623,51 +655,68 @@ export default function ServiceberichtPage() {
   const fileInputRef  = useRef<HTMLInputElement>(null);
   const toolbarRef    = useRef<HTMLDivElement>(null);
 
+  // ── Artikelliste für Autocomplete ──────────────────────────────────────────
+  const [artikel, setArtikel] = useState<ArtikelEntry[]>([]);
+  const [acState, setAcState] = useState<{
+    rowIdx: number; field: 'teilenummer' | 'beschreibung'; query: string; open: boolean;
+  }>({ rowIdx: -1, field: 'teilenummer', query: '', open: false });
+
+  useEffect(() => { ladeArtikel().then(setArtikel); }, []);
+
+  const artikelMap = useMemo(() => {
+    const m = new Map<string, string>();
+    artikel.forEach(a => m.set(a.teilenummer.toLowerCase(), a.beschreibung));
+    return m;
+  }, [artikel]);
+
+  const acSuggestions = useMemo((): ArtikelEntry[] => {
+    if (!acState.open || acState.query.length < 2) return [];
+    const q = acState.query.toLowerCase();
+    const results: ArtikelEntry[] = [];
+    for (const a of artikel) {
+      if (acState.field === 'teilenummer') {
+        if (a.teilenummer.toLowerCase().includes(q)) results.push(a);
+      } else {
+        if (a.beschreibung.toLowerCase().includes(q)) results.push(a);
+      }
+      if (results.length >= 10) break;
+    }
+    return results;
+  }, [acState, artikel]);
+
+  const handleMaterialChange = (i: number, f: keyof MaterialRow, v: string) => {
+    setForm(s => {
+      const m = [...s.material];
+      const row = { ...m[i], [f]: v };
+      // Automatisch das andere Feld befüllen wenn exakter Treffer
+      if (f === 'teilenummer') {
+        const found = artikel.find(a => a.teilenummer.toLowerCase() === v.toLowerCase());
+        if (found) { row.beschreibung = found.beschreibung; }
+      } else if (f === 'beschreibung') {
+        const found = artikel.find(a => a.beschreibung.toLowerCase() === v.toLowerCase());
+        if (found) { row.teilenummer = found.teilenummer; }
+      }
+      m[i] = row;
+      return { ...s, material: m };
+    });
+    setAcState({ rowIdx: i, field: f as 'teilenummer' | 'beschreibung', query: v, open: v.length >= 2 });
+  };
+
+  const selectSuggestion = (i: number, entry: ArtikelEntry) => {
+    setForm(s => {
+      const m = [...s.material];
+      m[i] = { ...m[i], teilenummer: entry.teilenummer, beschreibung: entry.beschreibung };
+      return { ...s, material: m };
+    });
+    setAcState(p => ({ ...p, open: false, query: '' }));
+  };
+
   // Dynamisches marginTop: passt sich an wenn Toolbar durch Wrap höher wird
   useEffect(() => {
     const toolbar = toolbarRef.current; if (!toolbar) return;
     const ro = new ResizeObserver(() => setToolbarH(toolbar.offsetHeight));
     ro.observe(toolbar);
     return () => ro.disconnect();
-  }, []);
-
-  // Prüfe beim Laden, ob Scanner-Daten zum Import vorhanden sind
-  useEffect(() => {
-    try {
-      const transferData = localStorage.getItem('gerlieva_scanner_transfer');
-      if (transferData) {
-        const parsed = JSON.parse(transferData);
-        const importedData = parsed.data as MaterialRow[];
-        
-        if (importedData && importedData.length > 0) {
-          const confirmed = window.confirm(
-            `Scanner-Daten gefunden: ${importedData.length} Artikel.\n\nMöchtest du diese in die Teileliste übernehmen?`
-          );
-          
-          if (confirmed) {
-            setForm(f => {
-              const newMaterial = [...f.material];
-              // Füge die importierten Daten ein (überschreibe leere Zeilen)
-              importedData.forEach((item, i) => {
-                if (i < newMaterial.length) {
-                  newMaterial[i] = item;
-                }
-              });
-              return { ...f, material: newMaterial };
-            });
-            
-            // Lösche die Transfer-Daten nach erfolgreichem Import
-            localStorage.removeItem('gerlieva_scanner_transfer');
-            showToast(`✅ ${importedData.length} Artikel erfolgreich importiert!`, 'success');
-          } else {
-            // Benutzer hat abgelehnt - Daten bleiben für späteren Import
-            showToast('Import abgebrochen. Daten bleiben gespeichert.', 'success');
-          }
-        }
-      }
-    } catch (err) {
-      console.error('Fehler beim Laden der Scanner-Daten:', err);
-    }
   }, []);
 
   const showToast = (msg: string, type: 'success' | 'error') => {
@@ -945,9 +994,78 @@ export default function ServiceberichtPage() {
                   <tbody>
                     {form.material.map((row, i) => (
                       <tr key={i}>
-                        {(['pos', 'beschreibung', 'teilenummer', 'stk'] as (keyof MaterialRow)[]).map(f => (
-                          <td key={f} style={s.td}><input type="text" value={row[f]} onChange={e => setMaterial(i, f, e.target.value)} style={s.cellInput} /></td>
-                        ))}
+                        {/* Pos */}
+                        <td style={s.td}>
+                          <input type="text" value={row.pos} onChange={e => setMaterial(i, 'pos', e.target.value)} style={s.cellInput} />
+                        </td>
+                        {/* Beschreibung mit Autocomplete */}
+                        <td style={{ ...s.td, position: 'relative' }}>
+                          <input
+                            type="text"
+                            value={row.beschreibung}
+                            onChange={e => handleMaterialChange(i, 'beschreibung', e.target.value)}
+                            onFocus={e => { if (e.target.value.length >= 2) setAcState({ rowIdx: i, field: 'beschreibung', query: e.target.value, open: true }); }}
+                            onBlur={() => setTimeout(() => setAcState(p => ({ ...p, open: false })), 150)}
+                            style={s.cellInput}
+                            autoComplete="off"
+                          />
+                          {acState.open && acState.rowIdx === i && acState.field === 'beschreibung' && acSuggestions.length > 0 && (
+                            <div style={{
+                              position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 9999,
+                              background: 'white', border: '1px solid #1a5fa8', borderRadius: '0 0 4px 4px',
+                              boxShadow: '0 4px 12px rgba(0,0,0,0.15)', maxHeight: 220, overflowY: 'auto',
+                            }}>
+                              {acSuggestions.map((a, idx) => (
+                                <div key={idx}
+                                  onMouseDown={() => selectSuggestion(i, a)}
+                                  style={{ padding: '5px 8px', cursor: 'pointer', fontSize: 10, borderBottom: '1px solid #eee',
+                                    display: 'flex', justifyContent: 'space-between', gap: 8 }}
+                                  onMouseEnter={e => (e.currentTarget.style.background = '#e8f0ff')}
+                                  onMouseLeave={e => (e.currentTarget.style.background = 'white')}
+                                >
+                                  <span style={{ fontWeight: 'bold', color: '#1a2744', flexShrink: 0 }}>{a.teilenummer}</span>
+                                  <span style={{ color: '#444', textAlign: 'right' }}>{a.beschreibung}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </td>
+                        {/* Teilenummer mit Autocomplete */}
+                        <td style={{ ...s.td, position: 'relative' }}>
+                          <input
+                            type="text"
+                            value={row.teilenummer}
+                            onChange={e => handleMaterialChange(i, 'teilenummer', e.target.value)}
+                            onFocus={e => { if (e.target.value.length >= 2) setAcState({ rowIdx: i, field: 'teilenummer', query: e.target.value, open: true }); }}
+                            onBlur={() => setTimeout(() => setAcState(p => ({ ...p, open: false })), 150)}
+                            style={s.cellInput}
+                            autoComplete="off"
+                          />
+                          {acState.open && acState.rowIdx === i && acState.field === 'teilenummer' && acSuggestions.length > 0 && (
+                            <div style={{
+                              position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 9999,
+                              background: 'white', border: '1px solid #1a5fa8', borderRadius: '0 0 4px 4px',
+                              boxShadow: '0 4px 12px rgba(0,0,0,0.15)', maxHeight: 220, overflowY: 'auto',
+                            }}>
+                              {acSuggestions.map((a, idx) => (
+                                <div key={idx}
+                                  onMouseDown={() => selectSuggestion(i, a)}
+                                  style={{ padding: '5px 8px', cursor: 'pointer', fontSize: 10, borderBottom: '1px solid #eee',
+                                    display: 'flex', justifyContent: 'space-between', gap: 8 }}
+                                  onMouseEnter={e => (e.currentTarget.style.background = '#e8f0ff')}
+                                  onMouseLeave={e => (e.currentTarget.style.background = 'white')}
+                                >
+                                  <span style={{ fontWeight: 'bold', color: '#1a2744', flexShrink: 0 }}>{a.teilenummer}</span>
+                                  <span style={{ color: '#444', textAlign: 'right' }}>{a.beschreibung}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </td>
+                        {/* Stk */}
+                        <td style={s.td}>
+                          <input type="text" value={row.stk} onChange={e => setMaterial(i, 'stk', e.target.value)} style={s.cellInput} />
+                        </td>
                       </tr>
                     ))}
                   </tbody>
