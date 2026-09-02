@@ -105,6 +105,7 @@ export default function DokumentePage() {
         "application/pdf",
         "application/msword",
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/json",
         "image/jpeg",
         "image/png",
       ];
@@ -112,7 +113,7 @@ export default function DokumentePage() {
       if (!allowedTypes.includes(file.type)) {
         toast({
           title: "Ungültiger Dateityp",
-          description: "Nur PDF, Word-Dokumente und Bilder sind erlaubt.",
+          description: "Nur PDF, Word-Dokumente, JSON und Bilder sind erlaubt.",
           variant: "destructive",
         });
         return;
@@ -312,7 +313,7 @@ export default function DokumentePage() {
               <CardHeader>
                 <CardTitle>Neues Dokument hochladen</CardTitle>
                 <CardDescription>
-                  Erlaubte Formate: PDF, Word, JPG, PNG (max. 10 MB)
+                  Erlaubte Formate: PDF, Word, JSON, JPG, PNG (max. 10 MB)
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -321,7 +322,7 @@ export default function DokumentePage() {
                   <Input
                     id="file"
                     type="file"
-                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                    accept=".pdf,.doc,.docx,.json,.jpg,.jpeg,.png"
                     onChange={handleFileSelect}
                     disabled={uploading}
                   />

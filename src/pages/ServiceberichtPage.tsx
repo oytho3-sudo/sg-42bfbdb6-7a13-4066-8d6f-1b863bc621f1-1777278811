@@ -767,7 +767,17 @@ export default function ServiceberichtPage() {
   // ── Computed ───────────────────────────────────────────────────────────────
   const gesamtBreakdown = calcGesamtBreakdown(form.monteure);
   const gesamtAZ        = formatMin(gesamtBreakdown.total);
-  const reiseBreakdown  = calcReiseBreakdown(form.reiseAnreise, form.reiseAbreise);
+  // Reisezeit gilt pro Monteur (z.B. gemeinsame An-/Abreise mit mehreren Personen) –
+  // die gesamte Reisezeit wird daher mit der Anzahl der Monteure multipliziert.
+  const monteurAnzahl      = form.monteure.length;
+  const reiseBreakdownRaw  = calcReiseBreakdown(form.reiseAnreise, form.reiseAbreise);
+  const reiseBreakdown = {
+    total:    reiseBreakdownRaw.total    * monteurAnzahl,
+    samstag:  reiseBreakdownRaw.samstag  * monteurAnzahl,
+    sonntag:  reiseBreakdownRaw.sonntag  * monteurAnzahl,
+    feiertag: reiseBreakdownRaw.feiertag * monteurAnzahl,
+    nacht:    reiseBreakdownRaw.nacht    * monteurAnzahl,
+  };
   const gesamtRZ        = formatMin(reiseBreakdown.total);
 
   // ── File name ──────────────────────────────────────────────────────────────
@@ -1074,8 +1084,11 @@ export default function ServiceberichtPage() {
             </div>
           </div>
 
+          {/* ── Zeiten + Unterschriften: sollen beim Druck als Block zusammenbleiben ── */}
+          <div className="zeiten-sig-group" style={{ marginTop: 20 }}>
+
           {/* ── Zeitenerfassung ── */}
-          <div style={{ ...s.section, marginTop: 20 }}>
+          <div style={s.section}>
             <h2 style={s.sectionTitle}>{t.sectionZeiten}</h2>
 
             {/* Monteur-Stepper */}
@@ -1347,6 +1360,11 @@ export default function ServiceberichtPage() {
                 <span style={{ fontWeight: 'bold', fontSize: 11, background: '#e8f4e8', padding: '2px 10px', borderRadius: 3, border: '1px solid #aaa' }}>
                   {gesamtRZ}
                 </span>
+                {monteurAnzahl > 1 && (
+                  <span style={{ fontSize: 9, color: '#555' }} title={`${formatMin(reiseBreakdownRaw.total)} × ${monteurAnzahl} ${t.labelMonteur}`}>
+                    (× {monteurAnzahl} {t.labelMonteur})
+                  </span>
+                )}
               </div>
               {reiseBreakdown.samstag > 0 && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -1406,6 +1424,8 @@ export default function ServiceberichtPage() {
               <input type="date" value={form.signatureDate} onChange={e => setField('signatureDate', e.target.value)}
                 style={{ border: '1px solid #ccc', padding: '6px 10px', borderRadius: 4, fontSize: 16, colorScheme: 'light', color: '#000', minHeight: 36, touchAction: 'manipulation' }} />
             </div>
+          </div>
+          {/* ── /Zeiten + Unterschriften ── */}
           </div>
 
         </div>
@@ -1553,6 +1573,12 @@ const printStyles = `
     .page-break-before { page-break-before: always !important; break-before: page !important; }
     tr { page-break-inside: avoid !important; break-inside: avoid !important; }
     thead { display: table-header-group; }
+
+    /* Zeiten + Unterschriften: als ein Block zusammenhalten, ggf. komplett auf neue Seite */
+    .zeiten-sig-group {
+      break-inside: avoid !important;
+      page-break-inside: avoid !important;
+    }
 
     /* Unterschriften: immer zusammenhalten, ggf. auf neue Seite */
     .sig-section {

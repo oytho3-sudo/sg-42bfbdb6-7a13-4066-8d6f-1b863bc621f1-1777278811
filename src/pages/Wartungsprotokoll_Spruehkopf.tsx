@@ -14,7 +14,7 @@ const translations = {
     savePdf:        '⬇ Als PDF speichern',
     shareJson:      '📤 JSON teilen',
     saveJson:       '💾 JSON speichern',
-    toolbarTitle:   'Wartungsprotokoll Dosieranlagen · GERLIEVA Sprühtechnik GmbH',
+    toolbarTitle:   'Wartungsprotokoll Sprühköpfe · GERLIEVA Sprühtechnik GmbH',
     pdfAlert:       'Im Druckdialog:\n1. Drucker → "Als PDF speichern"\n2. Weitere Einstellungen → "Hintergrundgrafiken" ✓ aktivieren\n3. Ränder auf "Minimal" setzen\n→ Dann sind alle Farben im PDF enthalten.',
     toastSaved:     '✅ JSON gespeichert!',
     toastDownloaded:'✅ JSON heruntergeladen!',
@@ -22,15 +22,15 @@ const translations = {
     toastInvalid:   'Ungültige JSON-Datei',
     toastError:     'Fehler: ',
     toastLoadError: 'Fehler beim Laden: ',
-    docTitle:       'Wartungsprotokoll',
+    docTitle:       'Wartungsprotokoll für Sprühköpfe',
     labelKunde:     'Kunde',
-    labelArbeitsplatz: 'Betr.St.',
+    labelKundenNr:  'Nr. vom Kunden',
     labelDgm:       'DGM',
-    labelPosition:  'Position',
-    labelMaschinTyp:'Presse',
-    labelMaschineNr:'Maschine Nr.',
+    labelProtokollNr: 'Protokoll-Nr.',
+    labelArtikelNr: 'Artikel-Nr. Sprühkopf',
+    labelRegNr:     'Registrier-Nr.',
     labelKom:       'Kom.',
-    labelBaujahr:   'Baujahr',
+    labelWartungDatumHead: 'Wartungsdatum',
     colPruefpunkt:  'Prüfpunkt / Kontrollieren auf',
     colOk:          'o.k.',
     colName:        'Name',
@@ -71,56 +71,61 @@ const translations = {
     tagTypNacht:    'Nachtstunden',
     techPlaceholder:'________________',
     home:           '🏠 Home',
-    labelWartungShare: 'Wartungsprotokoll Dosieranlagen GERLIEVA',
-    sectionMaterial:'Material- und Teileliste',
+    labelWartungShare: 'Wartungsprotokoll Sprühköpfe GERLIEVA',
+    sectionMaterial:'Ersatzteile + Zubehör (beim Kunden verblieben)',
     thPos:          'Pos.',
     thBeschreibung: 'Beschreibung',
     thTeilenummer:  'Teilenummer',
     thStk:          'Stk.',
-    // Aktueller Zustand
-    istZustandTitle:    'Aktueller Zustand',
-    labelMengeHub:      'Menge pro Hub',
-    labelMengeHubUnit:  'ml',
-    labelBemerkungen:   'Bemerkungen',
-    unitBar:            'bar',
-    unitLiter:          'l',
-    labelGewechselt:    'gewechselt',
-    // Divider
-    divAllgemein:        '▶  DOSIERANLAGE',
-    divAktZustand:       '▶  AKTUELLER ZUSTAND',
-    divDosierpumpe:      '▶  DOSIERPUMPE',
-    divFassdeckel:       '▶  FASSDECKEL / SAUGLANZE',
-    divWasserversorgung: '▶  WASSERVERSORGUNG',
-    // Prüfpunkte Dosieranlage 464
-    p01: 'Funktion in Automatik: Funktion',
-    p02: 'Funktionen im Handbetrieb: Wasserzulauf / Dosierpumpe',
-    p06: 'Pufferbehaelter: Zustand und Funktion der Fuellstandschalter',
-    p07: 'Membranpumpe: Drehmoment Schrauben, Funktion, Dichtigkeit',
-    p09: 'Mediumleitungen: Kontrolldurchgang Schlaeuche, Verschraubungen',
-    p10: 'Druckluft: Dichtigkeit, Schlaeuche, Armaturen, Filter, Oeler',
-    // Dosierpumpe
-    p12: 'Funktion',
-    p13: 'Dichtigkeit',
-    p14: 'ermittelte Menge',
-    // Fassdeckel / Sauglanze
-    p15: 'Saugleitung',
-    p16: 'Fasswechsel',
-    p17: 'Fuellstandschalter',
-    p18: 'Rückschlagventil',
-    // Wasserversorgung
-    p19: 'Druck',
-    p20: 'Dichtigkeit',
-    p21: 'Filtereinsatz',
-    p22: 'Wasserzaehler ausgelittert',
-    p23: 'Funktion Durchflussbegrenzer',
-    p24: 'Funktion Wasserventil',
+    // Teile- und Registriernummern (Seite 1)
+    sectionTeile:   'Teilenummern und Registriernummern',
+    sectionMembrane:'Membrane und Flachdichtungen',
+    thBezeichnung:  'Bezeichnung',
+    thRegNr:        'Registrier-Nr.',
+    btnZeileHinzu:  '+ Zeile',
+    btnZeileEntf:   '− Zeile',
+    // Spezialzeile 0: Medium-Versorgung / Filter
+    versorgTitle:   'Medium-Versorgung:',
+    versorgRingleitung: 'Ringleitung',
+    versorgDosieranlage: 'Dosieranlage',
+    versorgUnbekannt: 'Unbekannt',
+    filterTitle:    'Medium-Filter:',
+    filterVorhanden: 'vorhanden',
+    filterManuell:  'manuell',
+    filterAutomatisch: 'automatisch',
+    // Spezialzeile 1: Ausgetauschte Teile
+    tauschTitle:    'Ausgetauschte Teile:',
+    tauschGetauscht: 'getauscht',
+    tauschMembrane: 'Membrane (bei MMS: Membrane der Steuerventile)',
+    tauschDichtungen: 'Dichtungen',
+    tauschAvs:      'AVS / Steuerschläuche',
+    tauschORinge:   'O-Ringe',
+    // Spezialzeile 2: Dichtigkeitsprüfung
+    dichtTitle:     'Dichtigkeitsprüfung:',
+    dichtDicht:     'dicht',
+    dichtBar:       'Bar',
+    dichtSteuerluft: 'Steuerluft:',
+    dichtSpruehluft: 'Sprühluft / Medium:',
+    // Prüfpunkte
+    p01: 'Erster Eindruck Sauberkeit / äußerer Zustand / Beschädigungen',
+    p02: 'Wenn möglich manuell testen – kommen alle Kreise ?',
+    p03: 'Alle Düsen schalten das Medium sofort u. gleichmäßig zu/ab<br/>Kein Nachsprühen',
+    p04: 'Alle Düsen schalten die Luft sofort u. gleichmäßig zu/ab',
+    p05: 'O-Ring- / Düsen-Sitze in Ordnung',
+    p06: 'Sind die Steuerlufttaschen in Ordnung (ausgewaschen, Übergänge)',
+    p07: 'Wechselkappen angezogen',
+    p08: 'Kontermutter WK-Halter angezogen',
+    p09: 'Rohr-in-Rohr-System geprüft',
+    p10: 'O-Ringe – Überstand geprüft',
+    p11: 'Sprühkopf, wenn möglich, auf Maschine getestet',
+    pBem2: '<strong>Bemerkungen / Maßnahmen / Empfehlungen</strong>',
   },
   en: {
     loadJson:       '📂 Load JSON',
     savePdf:        '⬇ Save as PDF',
     shareJson:      '📤 Share JSON',
     saveJson:       '💾 Save JSON',
-    toolbarTitle:   'Maintenance Log GSK · GERLIEVA Sprühtechnik GmbH',
+    toolbarTitle:   'Spray Head Maintenance Log · GERLIEVA Sprühtechnik GmbH',
     pdfAlert:       'In the print dialog:\n1. Printer → "Save as PDF"\n2. More settings → enable "Background graphics" ✓\n→ This ensures all colours appear in the PDF.',
     toastSaved:     '✅ JSON saved!',
     toastDownloaded:'✅ JSON downloaded!',
@@ -128,15 +133,15 @@ const translations = {
     toastInvalid:   'Invalid JSON file',
     toastError:     'Error: ',
     toastLoadError: 'Error loading file: ',
-    docTitle:       'Maintenance Log',
+    docTitle:       'Spray Head Maintenance Log',
     labelKunde:     'Customer',
-    labelArbeitsplatz: 'Workplace / Op.St.',
+    labelKundenNr:  'Customer No.',
     labelDgm:       'DGM',
-    labelPosition:  'Position',
-    labelMaschinTyp:'Press',
-    labelMaschineNr:'Machine No.',
+    labelProtokollNr: 'Protocol No.',
+    labelArtikelNr: 'Spray Head Article No.',
+    labelRegNr:     'Registration No.',
     labelKom:       'Com.',
-    labelBaujahr:   'Year',
+    labelWartungDatumHead: 'Maintenance Date',
     colPruefpunkt:  'Inspection Point / Check for',
     colOk:          'o.k.',
     colName:        'Name',
@@ -177,55 +182,56 @@ const translations = {
     tagTypNacht:    'Night hours',
     techPlaceholder:'________________',
     home:           '🏠 Home',
-    labelWartungShare: 'Maintenance Log GERLIEVA',
-    sectionMaterial:'Materials & Parts List',
+    labelWartungShare: 'Spray Head Maintenance Log GERLIEVA',
+    sectionMaterial:'Spare Parts + Accessories (left with customer)',
     thPos:          'Pos.',
     thBeschreibung: 'Description',
     thTeilenummer:  'Part Number',
     thStk:          'Qty.',
-    // Current condition
-    istZustandTitle:    'Current condition',
-    labelMengeHub:      'Volume per stroke',
-    labelMengeHubUnit:  'ml',
-    labelBemerkungen:   'Remarks',
-    unitBar:            'bar',
-    unitLiter:          'l',
-    labelGewechselt:    'replaced',
-    divAllgemein:   '▶  DOSING SYSTEM',
-    divAktZustand:  '▶  CURRENT CONDITION',
-    divDosierpumpe:      '▶  DOSING PUMP',
-    divFassdeckel:       '▶  DRUM LID / SUCTION LANCE',
-    divWasserversorgung: '▶  WATER SUPPLY',
-    // Checkpoints dosing unit 464
-    p01: 'Function in automatic mode: function',
-    p02: 'Functions in manual mode: water feed / dosing pump',
-    p06: 'Buffer tank: status and function of the level switches',
-    p07: 'Diaphragm pump: torque screws, function, tightness',
-    p09: 'Medium lines: control passage hoses, fittings',
-    p10: 'Compressed air: tightness, hoses, fittings, filters, oilers',
-    // Dosing pump
-    p12: 'Function',
-    p13: 'Tightness',
-    p14: 'measured quantity',
-    // Drum lid / suction lance
-    p15: 'Suction line',
-    p16: 'Drum change',
-    p17: 'Level switch',
-    p18: 'Check valve',
-    // Water supply
-    p19: 'Pressure',
-    p20: 'Tightness',
-    p21: 'Filter cartridge',
-    p22: 'Water meter reading recorded',
-    p23: 'Flow limiter function',
-    p24: 'Water valve function',
+    sectionTeile:   'Part Numbers and Registration Numbers',
+    sectionMembrane:'Diaphragms and Flat Gaskets',
+    thBezeichnung:  'Description',
+    thRegNr:        'Reg. No.',
+    btnZeileHinzu:  '+ Row',
+    btnZeileEntf:   '− Row',
+    versorgTitle:   'Medium supply:',
+    versorgRingleitung: 'Ring line',
+    versorgDosieranlage: 'Dosing unit',
+    versorgUnbekannt: 'Unknown',
+    filterTitle:    'Medium filter:',
+    filterVorhanden: 'present',
+    filterManuell:  'manual',
+    filterAutomatisch: 'automatic',
+    tauschTitle:    'Parts replaced:',
+    tauschGetauscht: 'replaced',
+    tauschMembrane: 'Diaphragm (MMS: control valve diaphragm)',
+    tauschDichtungen: 'Seals',
+    tauschAvs:      'AVS / control hoses',
+    tauschORinge:   'O-rings',
+    dichtTitle:     'Tightness test:',
+    dichtDicht:     'tight',
+    dichtBar:       'Bar',
+    dichtSteuerluft: 'Control air:',
+    dichtSpruehluft: 'Spray air / medium:',
+    p01: 'First impression – cleanliness / external condition / damage',
+    p02: 'If possible, test manually – do all circuits respond?',
+    p03: 'All nozzles switch the medium on/off immediately and evenly<br/>No after-spray',
+    p04: 'All nozzles switch the air on/off immediately and evenly',
+    p05: 'O-ring / nozzle seats in order',
+    p06: 'Are the control-air pockets in order (flushed, transitions)',
+    p07: 'Interchangeable caps tightened',
+    p08: 'Lock nut of cap holder tightened',
+    p09: 'Pipe-in-pipe system checked',
+    p10: 'O-rings – protrusion checked',
+    p11: 'Spray head tested on machine, if possible',
+    pBem2: '<strong>Remarks / Measures / Recommendations</strong>',
   },
   fr: {
     loadJson:       '📂 Charger JSON',
     savePdf:        '⬇ Enregistrer en PDF',
     shareJson:      '📤 Partager JSON',
     saveJson:       '💾 Sauvegarder JSON',
-    toolbarTitle:   'Protocole de maintenance GSK · GERLIEVA Sprühtechnik GmbH',
+    toolbarTitle:   'Protocole de maintenance têtes de pulvérisation · GERLIEVA Sprühtechnik GmbH',
     pdfAlert:       "Dans la boîte de dialogue d'impression :\n1. Imprimante → \"Enregistrer en PDF\"\n2. Paramètres → activer \"Graphiques d'arrière-plan\" ✓\n→ Toutes les couleurs apparaîtront dans le PDF.",
     toastSaved:     '✅ JSON enregistré !',
     toastDownloaded:'✅ JSON téléchargé !',
@@ -233,15 +239,15 @@ const translations = {
     toastInvalid:   'Fichier JSON invalide',
     toastError:     'Erreur : ',
     toastLoadError: 'Erreur de chargement : ',
-    docTitle:       'Protocole de maintenance',
+    docTitle:       'Protocole de maintenance des têtes de pulvérisation',
     labelKunde:     'Client',
-    labelArbeitsplatz: 'Poste d\'op.',
+    labelKundenNr:  'N° client',
     labelDgm:       'DGM',
-    labelPosition:  'Position',
-    labelMaschinTyp:'Presse',
-    labelMaschineNr:'N° machine',
+    labelProtokollNr: 'N° protocole',
+    labelArtikelNr: 'N° article tête de pulvérisation',
+    labelRegNr:     "N° d'enregistrement",
     labelKom:       'Com.',
-    labelBaujahr:   'Année',
+    labelWartungDatumHead: 'Date de maintenance',
     colPruefpunkt:  'Point de contrôle / Vérifier',
     colOk:          'o.k.',
     colName:        'Nom',
@@ -282,48 +288,49 @@ const translations = {
     tagTypNacht:    'Heures de nuit',
     techPlaceholder:'________________',
     home:           '🏠 Accueil',
-    labelWartungShare: 'Protocole de maintenance GERLIEVA',
-    sectionMaterial:'Liste des matériaux et pièces',
+    labelWartungShare: 'Protocole de maintenance têtes de pulvérisation GERLIEVA',
+    sectionMaterial:'Pièces de rechange + accessoires (restés chez le client)',
     thPos:          'Pos.',
     thBeschreibung: 'Description',
     thTeilenummer:  'N° de pièce',
     thStk:          'Qté.',
-    // État actuel
-    istZustandTitle:    'État actuel',
-    labelMengeHub:      'Volume par course',
-    labelMengeHubUnit:  'ml',
-    labelBemerkungen:   'Remarques',
-    unitBar:            'bar',
-    unitLiter:          'l',
-    labelGewechselt:    'remplacé',
-    divAllgemein:   '▶  SYSTÈME DE DOSAGE',
-    divAktZustand:  '▶  ÉTAT ACTUEL',
-    divDosierpumpe:      '▶  POMPE DOSEUSE',
-    divFassdeckel:       "▶  COUVERCLE DE FÛT / LANCE D'ASPIRATION",
-    divWasserversorgung: '▶  ALIMENTATION EN EAU',
-    // Points de contrôle installation de dosage 464
-    p01: 'Fonction en mode automatique : fonction',
-    p02: "Fonctions en mode manuel : arrivée d'eau / pompe doseuse",
-    p06: 'Réservoir tampon : état et fonction des interrupteurs de niveau',
-    p07: 'Pompe à membrane : couple des vis, fonction, étanchéité',
-    p09: 'Conduites de produit : contrôle du passage, flexibles, raccords',
-    p10: 'Air comprimé : étanchéité, flexibles, raccords, filtres, huileurs',
-    // Pompe doseuse
-    p12: 'Fonction',
-    p13: 'Étanchéité',
-    p14: 'quantité mesurée',
-    // Couvercle de fût / lance d'aspiration
-    p15: "Conduite d'aspiration",
-    p16: 'Changement de fût',
-    p17: 'Interrupteur de niveau',
-    p18: 'Vanne anti-retour',
-    // Alimentation en eau
-    p19: 'Pression',
-    p20: 'Étanchéité',
-    p21: 'Cartouche filtrante',
-    p22: "Relevé du compteur d'eau effectué",
-    p23: 'Fonction limiteur de débit',
-    p24: "Fonction vanne d'eau",
+    sectionTeile:   "Numéros de pièces et numéros d'enregistrement",
+    sectionMembrane:'Membranes et joints plats',
+    thBezeichnung:  'Désignation',
+    thRegNr:        "N° d'enr.",
+    btnZeileHinzu:  '+ Ligne',
+    btnZeileEntf:   '− Ligne',
+    versorgTitle:   'Alimentation en produit :',
+    versorgRingleitung: 'Conduite annulaire',
+    versorgDosieranlage: 'Unité de dosage',
+    versorgUnbekannt: 'Inconnu',
+    filterTitle:    'Filtre produit :',
+    filterVorhanden: 'présent',
+    filterManuell:  'manuel',
+    filterAutomatisch: 'automatique',
+    tauschTitle:    'Pièces remplacées :',
+    tauschGetauscht: 'remplacé',
+    tauschMembrane: 'Membrane (MMS : membrane des vannes de commande)',
+    tauschDichtungen: 'Joints',
+    tauschAvs:      'AVS / flexibles de commande',
+    tauschORinge:   'Joints toriques',
+    dichtTitle:     "Contrôle d'étanchéité :",
+    dichtDicht:     'étanche',
+    dichtBar:       'Bar',
+    dichtSteuerluft: 'Air de commande :',
+    dichtSpruehluft: 'Air de pulvérisation / produit :',
+    p01: 'Première impression – propreté / état extérieur / dommages',
+    p02: 'Si possible, tester manuellement – tous les circuits réagissent-ils ?',
+    p03: 'Toutes les buses coupent le produit immédiatement et uniformément<br/>Pas de post-pulvérisation',
+    p04: "Toutes les buses coupent l'air immédiatement et uniformément",
+    p05: 'Sièges de buses / joints toriques en bon état',
+    p06: "Les poches d'air de commande sont-elles en bon état (rincées, transitions)",
+    p07: 'Capuchons interchangeables serrés',
+    p08: 'Contre-écrou du porte-capuchon serré',
+    p09: 'Système tube-dans-tube vérifié',
+    p10: 'Joints toriques – débordement vérifié',
+    p11: 'Tête de pulvérisation testée sur machine, si possible',
+    pBem2: '<strong>Remarques / Mesures / Recommandations</strong>',
   },
 } satisfies Record<Lang, Record<string, string>>;
 
@@ -341,21 +348,24 @@ interface Zeile {
   divider?: TKeys;
   textKey?: TKeys;
   bem?: string | null;
-  hasInput?: boolean;
-  inputUnit?: TKeys;
-  extraCheck?: TKeys;
 }
 
 interface ZeilenState {
-  ck:    CheckState;
-  name:  string;
-  bem:   string;
-  value: string;
-  extra: Ck2State;
+  ck:   CheckState;
+  name: string;
+  bem:  string;
 }
 
 interface MaterialRow {
   pos: string; beschreibung: string; teilenummer: string; stk: string;
+}
+
+interface TeilRow {
+  pos: string; bezeichnung: string; teilenummer: string; registriernummer: string;
+}
+
+interface MembranRow {
+  pos: string; stk: string; bezeichnung: string; teilenummer: string;
 }
 
 interface MontagTag {
@@ -375,13 +385,12 @@ interface FormData {
   version:       number;
   ts:            string;
   kunde:         string;
-  arbeitsplatz:  string;
+  kundenNr:      string;
   dgm:           string;
-  position:      string;
-  maschinTyp:    string;
-  maschineNr:    string;
+  protokollNr:   string;
+  artikelNr:     string;
+  regNr:         string;
   kom:           string;
-  baujahr:       string;
   wartungDatum:  string;
   monteure:      Monteur[];
   nameGerlieva:  string;
@@ -392,61 +401,57 @@ interface FormData {
   massnahmen:    string;
   zeilenState:   ZeilenState[];
   material:      MaterialRow[];
-  istZustand:    { mengeHub: string; mischung: string; bemerkung: string };
+  teile:         TeilRow[];
+  membrane:      MembranRow[];
+  versorgung:    { ringleitung: Ck2State; dosieranlage: Ck2State; unbekannt: Ck2State; filterVorhanden: Ck2State; filterManuell: Ck2State; filterAutomatisch: Ck2State };
+  tausch:        { membrane: Ck2State; dichtungen: Ck2State; avs: Ck2State; oringe: Ck2State };
+  dicht:         { steuerluftAktiv: Ck2State; steuerluftBar: string; spruehluftAktiv: Ck2State; spruehluftBar: string };
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Zeilen-Daten
 // ═══════════════════════════════════════════════════════════════════════════════
 
-// Seite 1: ALLE Prüfpunkte Dosieranlage 464 (4 Bereiche: Dosieranlage, Dosierpumpe, Fassdeckel/Sauglanze, Wasserversorgung)
+// Seite 1: ALLE Prüfpunkte (p01–p11), ohne Unterteilung, + Spezialzeilen
 const alleZeilen: Zeile[] = [
-  { divider: 'divAllgemein' },
   { textKey: 'p01', bem: '' },
   { textKey: 'p02', bem: '' },
+  { textKey: 'p03', bem: '' },
+  { textKey: 'p04', bem: '' },
+  { textKey: 'p05', bem: '' },
   { textKey: 'p06', bem: '' },
   { textKey: 'p07', bem: '' },
+  { textKey: 'p08', bem: '' },
   { textKey: 'p09', bem: '' },
   { textKey: 'p10', bem: '' },
-  { divider: 'divDosierpumpe' },
-  { textKey: 'p12', bem: '' },
-  { textKey: 'p13', bem: '' },
-  { textKey: 'p14', bem: '', hasInput: true, inputUnit: 'labelMengeHubUnit' },
-  { divider: 'divFassdeckel' },
-  { textKey: 'p15', bem: '' },
-  { textKey: 'p16', bem: '' },
-  { textKey: 'p17', bem: '' },
-  { textKey: 'p18', bem: '' },
-  { divider: 'divWasserversorgung' },
-  { textKey: 'p19', bem: '', hasInput: true, inputUnit: 'unitBar' },
-  { textKey: 'p20', bem: '' },
-  { textKey: 'p21', bem: '', extraCheck: 'labelGewechselt' },
-  { textKey: 'p22', bem: '' },
-  { textKey: 'p24', bem: '' },
-  { textKey: 'p23', bem: '' },
+  { textKey: 'p11', bem: '' },
+  // pBem2 = bem=null Zeile (nach den 3 Spezialzeilen gerendert), 4-zeiliges Textfeld
+  { textKey: 'pBem2', bem: null },
 ];
 
 // Seite 2: leer (Fuß + Unterschriften werden separat gerendert)
 const seite2Zeilen: Zeile[] = [];
 
 // Gesamtanzahl Zeilen für zeilenState-Array:
-const TOTAL_ZEILEN_COUNT = alleZeilen.length;
+// alleZeilen.length + seite2Zeilen.length (inkl. null-Zeilen) + 3 Spezialzeilen
+const TOTAL_ZEILEN_COUNT = alleZeilen.length + 3; // +3 für Spezialzeilen
 
 const emptyTag      = (): MontagTag => ({ datum: '', vonZeit: '', bisZeit: '', pauseMin: '', tagTyp: '' });
 const emptyMonteur  = (): Monteur  => ({ name: '', tage: [emptyTag()] });
 const emptyMaterial = (): MaterialRow => ({ pos: '', beschreibung: '', teilenummer: '', stk: '' });
+const emptyTeil     = (): TeilRow => ({ pos: '', bezeichnung: '', teilenummer: '', registriernummer: '' });
+const emptyMembran  = (): MembranRow => ({ pos: '', stk: '', bezeichnung: '', teilenummer: '' });
 
 const initialForm = (): FormData => ({
   version:       1,
   ts:            '',
   kunde:         '',
-  arbeitsplatz:  '',
+  kundenNr:      '',
   dgm:           '',
-  position:      '',
-  maschinTyp:    '',
-  maschineNr:    '',
+  protokollNr:   '',
+  artikelNr:     '',
+  regNr:         '',
   kom:           '',
-  baujahr:       '',
   wartungDatum:  '',
   monteure:      [emptyMonteur()],
   nameGerlieva:  '',
@@ -455,9 +460,13 @@ const initialForm = (): FormData => ({
   signatures:    {},
   bemerkungen:   '',
   massnahmen:    '',
-  zeilenState:   Array.from({ length: TOTAL_ZEILEN_COUNT }, () => ({ ck: 0 as CheckState, name: '', bem: '', value: '', extra: 0 as Ck2State })),
+  zeilenState:   Array.from({ length: TOTAL_ZEILEN_COUNT }, () => ({ ck: 0 as CheckState, name: '', bem: '' })),
   material:      Array.from({ length: 15 }, emptyMaterial),
-  istZustand:    { mengeHub: '', mischung: '', bemerkung: '' },
+  teile:         Array.from({ length: 1 }, emptyTeil),
+  membrane:      Array.from({ length: 1 }, emptyMembran),
+  versorgung:    { ringleitung: 0, dosieranlage: 0, unbekannt: 0, filterVorhanden: 0, filterManuell: 0, filterAutomatisch: 0 },
+  tausch:        { membrane: 0, dichtungen: 0, avs: 0, oringe: 0 },
+  dicht:         { steuerluftAktiv: 0, steuerluftBar: '', spruehluftAktiv: 0, spruehluftBar: '' },
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -514,10 +523,10 @@ function calcGesamtBreakdown(monteure: Monteur[]): { total: number; samstag: num
   return { total, samstag, sonntag, feiertag, nacht };
 }
 
-function buildFileName(ext: string, maschineNr: string): string {
-  const nr = maschineNr.trim().replace(/[^a-zA-Z0-9_\-]/g, '_');
+function buildFileName(ext: string, kennung: string): string {
+  const nr = kennung.trim().replace(/[^a-zA-Z0-9_\-]/g, '_');
   const d  = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-  return (nr ? `Wartungsprotokoll_${nr}_${d}` : `Wartungsprotokoll_${d}`) + '.' + ext;
+  return (nr ? `Wartungsprotokoll_Spruehkopf_${nr}_${d}` : `Wartungsprotokoll_Spruehkopf_${d}`) + '.' + ext;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -751,7 +760,7 @@ function Ck2({ state, onChange }: { state: Ck2State; onChange: (s: Ck2State) => 
         cursor: 'pointer', verticalAlign: 'middle', fontSize: 11, textAlign: 'center',
         lineHeight: '18px', userSelect: 'none', background: state === 1 ? '#d4edda' : '',
         WebkitTapHighlightColor: 'transparent' }}>
-      {state === 1 ? '✓' : '\u00a0'}
+      {state === 1 ? '✓' : ' '}
     </span>
   );
 }
@@ -783,34 +792,20 @@ function PruefZeile({ zeile, state, onChange, rowIndex, t }: {
   if (zeile.bem === null) {
     return (
       <tr>
-        <td colSpan={4} style={{ ...cell, minHeight: 26 }}>
+        <td colSpan={4} style={{ ...cell }}>
           <span dangerouslySetInnerHTML={{ __html: text }} />
-          &nbsp;&nbsp;
-          <input type="text" value={state.bem} onChange={e => onChange({ bem: e.target.value })}
-            style={{ ...inp, width: '60%', display: 'inline-block' }} />
+          <textarea value={state.bem} onChange={e => onChange({ bem: e.target.value })}
+            rows={4}
+            style={{ display: 'block', width: '100%', marginTop: 3, border: '1px solid #bbb', outline: 'none',
+              fontFamily: 'Arial', fontSize: 8, background: 'transparent', padding: 3, boxSizing: 'border-box',
+              resize: 'vertical' }} />
         </td>
       </tr>
     );
   }
   return (
     <tr>
-      <td style={cell}>
-        <span dangerouslySetInnerHTML={{ __html: text }} />
-        {zeile.hasInput && (
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginLeft: 6 }}>
-            <input type="text" inputMode="decimal" value={state.value}
-              onChange={e => onChange({ value: e.target.value })}
-              style={{ width: 44, border: '1px solid #999', borderRadius: 2, fontSize: 8, textAlign: 'center', padding: '1px 2px', fontFamily: 'Arial', fontWeight: 'bold', background: '#fff' }} />
-            <span style={{ fontSize: 7.5, color: '#666' }}>{zeile.inputUnit ? t[zeile.inputUnit] : t.labelMengeHubUnit}</span>
-          </span>
-        )}
-        {zeile.extraCheck && (
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginLeft: 8, cursor: 'pointer', verticalAlign: 'middle' }}>
-            <Ck2 state={state.extra} onChange={s => onChange({ extra: s })} />
-            <span style={{ fontSize: 7.5, color: '#333' }}>{t[zeile.extraCheck]}</span>
-          </label>
-        )}
-      </td>
+      <td style={cell}><span dangerouslySetInnerHTML={{ __html: text }} /></td>
       <CheckCell state={state.ck} onChange={ck => onChange({ ck })} />
       <td style={cell}><input type="text" value={state.name} onChange={e => onChange({ name: e.target.value })} style={inp} /></td>
       <td style={cell}><input type="text" value={state.bem}  onChange={e => onChange({ bem: e.target.value })}  style={inp} /></td>
@@ -888,14 +883,13 @@ const LOGO_B64 = '/9j/4AAQSkZJRgABAQEAYABgAAD/4SWIRXhpZgAATU0AKgAAAAgABgALAAIAAA
 // Haupt-Komponente
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export default function WartungsprotokollPage() {
+export default function SpruehkopfWartungsprotokollPage() {
   const [lang, setLang]         = useState<Lang>('de');
   const t = translations[lang] as T;
 
   const [form, setForm]         = useState<FormData>(initialForm);
   const [sigModal, setSigModal] = useState<{ id: 'sig-gerlieva' | 'sig-kunde'; label: string } | null>(null);
   const [toast, setToast]       = useState<{ msg: string; type: 'success' | 'error' | ''; visible: boolean }>({ msg: '', type: '', visible: false });
-  const [bemExpanded, setBemExpanded] = useState(false);
   const fileInputRef  = useRef<HTMLInputElement>(null);
   const toolbarRef    = useRef<HTMLDivElement>(null);
 
@@ -971,8 +965,26 @@ export default function WartungsprotokollPage() {
   const setMaterial = (i: number, key: keyof MaterialRow, val: string) =>
     setForm(f => { const mat = [...f.material]; mat[i] = { ...mat[i], [key]: val }; return { ...f, material: mat }; });
 
+  const setTeil = (i: number, key: keyof TeilRow, val: string) =>
+    setForm(f => { const arr = [...f.teile]; arr[i] = { ...arr[i], [key]: val }; return { ...f, teile: arr }; });
+
+  const addTeil = () =>
+    setForm(f => ({ ...f, teile: [...f.teile, emptyTeil()] }));
+
+  const removeTeil = () =>
+    setForm(f => f.teile.length <= 1 ? f : { ...f, teile: f.teile.slice(0, -1) });
+
+  const setMembran = (i: number, key: keyof MembranRow, val: string) =>
+    setForm(f => { const arr = [...f.membrane]; arr[i] = { ...arr[i], [key]: val }; return { ...f, membrane: arr }; });
+
+  const addMembran = () =>
+    setForm(f => ({ ...f, membrane: [...f.membrane, emptyMembran()] }));
+
+  const removeMembran = () =>
+    setForm(f => f.membrane.length <= 1 ? f : { ...f, membrane: f.membrane.slice(0, -1) });
+
   // ── File name ──────────────────────────────────────────────────────────────
-  const getFileNameFn = (ext: string) => buildFileName(ext, form.maschineNr);
+  const getFileNameFn = (ext: string) => buildFileName(ext, form.kundenNr);
 
   // ── JSON I/O ───────────────────────────────────────────────────────────────
   const collectFormData = () => ({ ...form, ts: new Date().toISOString() });
@@ -1066,6 +1078,113 @@ export default function WartungsprotokollPage() {
     WebkitTapHighlightColor: 'transparent',
   });
 
+  // ── Spezialzeilen (Medium-Versorgung, Ausgetauschte Teile, Dichtigkeit) kommen nach alleZeilen ──
+  const S2_OFFSET  = alleZeilen.length;      // Spezial folgen direkt nach alleZeilen
+  const S2_NORMAL  = 0;                       // seite2Zeilen ist leer
+  const innerInp: React.CSSProperties = { border: 'none', outline: 'none', fontFamily: 'Arial', fontSize: 8, background: 'transparent', padding: 0 };
+
+  const renderSpecial = (specialIdx: 0 | 1 | 2, rowIndex: number) => {
+    const bg     = rowIndex % 2 === 0 ? '#fff' : '#f3f3f3';
+    const absIdx = S2_OFFSET + S2_NORMAL + specialIdx;
+    const td: React.CSSProperties = { ...cellStyle, background: bg };
+    const zs = form.zeilenState[absIdx] ?? { ck: 0 as CheckState, name: '', bem: '' };
+
+    const ckCol = <CheckCell state={zs.ck} onChange={ck => setZeile(absIdx, { ck })} />;
+    const nameCol = <td style={td}><input type="text" value={zs.name} onChange={e => setZeile(absIdx, { name: e.target.value })} style={innerInp} /></td>;
+    const bemCol  = <td style={td}><input type="text" value={zs.bem}  onChange={e => setZeile(absIdx, { bem:  e.target.value })} style={innerInp} /></td>;
+
+    // Spezialzeile 0: Medium-Versorgung + Filter
+    if (specialIdx === 0) return (
+      <tr key="sp0">
+        <td style={td}>
+          <table style={{ border: 'none', width: '100%', fontSize: 8, borderCollapse: 'collapse' }}><tbody>
+            <tr>
+              <td colSpan={2} style={{ border: 'none', padding: '1px 4px 2px 0', fontWeight: 'bold' }}>{t.versorgTitle}</td>
+              <td style={{ border: 'none', textAlign: 'center', fontWeight: 'bold' }}>{t.versorgRingleitung}</td>
+              <td style={{ border: 'none', textAlign: 'center', fontWeight: 'bold' }}>{t.versorgDosieranlage}</td>
+              <td style={{ border: 'none', textAlign: 'center', fontWeight: 'bold' }}>{t.versorgUnbekannt}</td>
+            </tr>
+            <tr>
+              <td colSpan={2} style={{ border: 'none', padding: '1px 0 1px 8px' }}></td>
+              <td style={{ border: 'none', textAlign: 'center' }}><Ck2 state={form.versorgung.ringleitung}  onChange={v => setForm(f => ({ ...f, versorgung: { ...f.versorgung, ringleitung: v } }))} /></td>
+              <td style={{ border: 'none', textAlign: 'center' }}><Ck2 state={form.versorgung.dosieranlage} onChange={v => setForm(f => ({ ...f, versorgung: { ...f.versorgung, dosieranlage: v } }))} /></td>
+              <td style={{ border: 'none', textAlign: 'center' }}><Ck2 state={form.versorgung.unbekannt}    onChange={v => setForm(f => ({ ...f, versorgung: { ...f.versorgung, unbekannt: v } }))} /></td>
+            </tr>
+            <tr>
+              <td colSpan={2} style={{ border: 'none', padding: '3px 4px 1px 0', fontWeight: 'bold' }}>{t.filterTitle}</td>
+              <td style={{ border: 'none', textAlign: 'center', fontWeight: 'bold' }}>{t.filterVorhanden}</td>
+              <td style={{ border: 'none', textAlign: 'center', fontWeight: 'bold' }}>{t.filterManuell}</td>
+              <td style={{ border: 'none', textAlign: 'center', fontWeight: 'bold' }}>{t.filterAutomatisch}</td>
+            </tr>
+            <tr>
+              <td colSpan={2} style={{ border: 'none', padding: '1px 0 1px 8px' }}></td>
+              <td style={{ border: 'none', textAlign: 'center' }}><Ck2 state={form.versorgung.filterVorhanden}   onChange={v => setForm(f => ({ ...f, versorgung: { ...f.versorgung, filterVorhanden: v } }))} /></td>
+              <td style={{ border: 'none', textAlign: 'center' }}><Ck2 state={form.versorgung.filterManuell}     onChange={v => setForm(f => ({ ...f, versorgung: { ...f.versorgung, filterManuell: v } }))} /></td>
+              <td style={{ border: 'none', textAlign: 'center' }}><Ck2 state={form.versorgung.filterAutomatisch} onChange={v => setForm(f => ({ ...f, versorgung: { ...f.versorgung, filterAutomatisch: v } }))} /></td>
+            </tr>
+          </tbody></table>
+        </td>
+        {ckCol}{nameCol}{bemCol}
+      </tr>
+    );
+
+    // Spezialzeile 1: Ausgetauschte Teile
+    if (specialIdx === 1) return (
+      <tr key="sp1">
+        <td style={td}>
+          <table style={{ border: 'none', width: '100%', fontSize: 8, borderCollapse: 'collapse' }}><tbody>
+            <tr>
+              <td colSpan={2} style={{ border: 'none', padding: '1px 4px 2px 0', fontWeight: 'bold' }}>{t.tauschTitle}</td>
+              <td style={{ border: 'none', textAlign: 'center', fontWeight: 'bold' }}>{t.tauschGetauscht}</td>
+            </tr>
+            <tr>
+              <td colSpan={2} style={{ border: 'none', padding: '1px 0 1px 8px' }}>{t.tauschMembrane}</td>
+              <td style={{ border: 'none', textAlign: 'center' }}><Ck2 state={form.tausch.membrane} onChange={v => setForm(f => ({ ...f, tausch: { ...f.tausch, membrane: v } }))} /></td>
+            </tr>
+            <tr>
+              <td colSpan={2} style={{ border: 'none', padding: '1px 0 1px 8px' }}>{t.tauschDichtungen}</td>
+              <td style={{ border: 'none', textAlign: 'center' }}><Ck2 state={form.tausch.dichtungen} onChange={v => setForm(f => ({ ...f, tausch: { ...f.tausch, dichtungen: v } }))} /></td>
+            </tr>
+            <tr>
+              <td colSpan={2} style={{ border: 'none', padding: '1px 0 1px 8px' }}>{t.tauschAvs}</td>
+              <td style={{ border: 'none', textAlign: 'center' }}><Ck2 state={form.tausch.avs} onChange={v => setForm(f => ({ ...f, tausch: { ...f.tausch, avs: v } }))} /></td>
+            </tr>
+            <tr>
+              <td colSpan={2} style={{ border: 'none', padding: '1px 0 1px 8px' }}>{t.tauschORinge}</td>
+              <td style={{ border: 'none', textAlign: 'center' }}><Ck2 state={form.tausch.oringe} onChange={v => setForm(f => ({ ...f, tausch: { ...f.tausch, oringe: v } }))} /></td>
+            </tr>
+          </tbody></table>
+        </td>
+        {ckCol}{nameCol}{bemCol}
+      </tr>
+    );
+
+    // Spezialzeile 2: Dichtigkeitsprüfung
+    return (
+      <tr key="sp2">
+        <td style={td}>
+          <table style={{ border: 'none', width: '100%', fontSize: 8, borderCollapse: 'collapse' }}><tbody>
+            <tr>
+              <td style={{ border: 'none', fontWeight: 'bold' }}>{t.dichtTitle}</td>
+              <td style={{ border: 'none', fontWeight: 'bold', textAlign: 'center' }}>{t.dichtDicht}</td>
+              <td style={{ border: 'none', fontWeight: 'bold', textAlign: 'center' }}>{t.dichtBar}</td>
+            </tr>
+            <tr>
+              <td style={{ border: 'none', padding: '1px 0 1px 8px' }}>{t.dichtSteuerluft}</td>
+              <td style={{ border: 'none', textAlign: 'center' }}><Ck2 state={form.dicht.steuerluftAktiv} onChange={v => setForm(f => ({ ...f, dicht: { ...f.dicht, steuerluftAktiv: v } }))} /></td>
+              <td style={{ border: 'none', textAlign: 'center' }}><input type="text" value={form.dicht.steuerluftBar} onChange={e => setForm(f => ({ ...f, dicht: { ...f.dicht, steuerluftBar: e.target.value } }))} style={{ width: 60, border: '1px solid #000', fontSize: 8, textAlign: 'center', padding: 1 }} /></td>
+            </tr>
+            <tr>
+              <td style={{ border: 'none', padding: '1px 0 1px 8px' }}>{t.dichtSpruehluft}</td>
+              <td style={{ border: 'none', textAlign: 'center' }}><Ck2 state={form.dicht.spruehluftAktiv} onChange={v => setForm(f => ({ ...f, dicht: { ...f.dicht, spruehluftAktiv: v } }))} /></td>
+              <td style={{ border: 'none', textAlign: 'center' }}><input type="text" value={form.dicht.spruehluftBar} onChange={e => setForm(f => ({ ...f, dicht: { ...f.dicht, spruehluftBar: e.target.value } }))} style={{ width: 60, border: '1px solid #000', fontSize: 8, textAlign: 'center', padding: 1 }} /></td>
+            </tr>
+          </tbody></table>
+        </td>
+        {ckCol}{nameCol}{bemCol}
+      </tr>
+    );
+  };
 
   // ═══════════════════════════════════════════════════════════════════════════
   // Render
@@ -1116,83 +1235,111 @@ export default function WartungsprotokollPage() {
               </tr>
               <tr style={{ height: 18 }}>
                 <th style={thStyle}>{t.labelKunde}</th>
-                <td style={cellStyle}><input type="text" value={form.kunde}        onChange={e => setField('kunde', e.target.value)}        style={inp({ height: 16 })} /></td>
-                <th style={thStyle}>{t.labelArbeitsplatz}</th>
-                <td style={cellStyle}><input type="text" value={form.arbeitsplatz} onChange={e => setField('arbeitsplatz', e.target.value)} style={inp({ height: 16 })} maxLength={12} /></td>
+                <td style={cellStyle}><input type="text" value={form.kunde}    onChange={e => setField('kunde', e.target.value)}    style={inp({ height: 16 })} /></td>
+                <th style={thStyle}>{t.labelKundenNr}</th>
+                <td style={cellStyle}><input type="text" value={form.kundenNr} onChange={e => setField('kundenNr', e.target.value)} style={inp({ height: 16 })} maxLength={12} /></td>
                 <th style={thStyle}>{t.labelDgm}</th>
-                <td style={cellStyle}><input type="text" value={form.dgm}          onChange={e => setField('dgm', e.target.value)}          style={inp({ height: 16 })} /></td>
-                <th style={thStyle}>{t.labelPosition}</th>
-                <td style={{ ...cellStyle, width: 55 }}><input type="text" value={form.position} onChange={e => setField('position', e.target.value)} style={inp({ width: 52, height: 16 })} maxLength={8} /></td>
+                <td style={cellStyle}><input type="text" value={form.dgm}      onChange={e => setField('dgm', e.target.value)}      style={inp({ height: 16 })} /></td>
+                <th style={thStyle}>{t.labelProtokollNr}</th>
+                <td style={{ ...cellStyle, width: 55 }}><input type="text" value={form.protokollNr} onChange={e => setField('protokollNr', e.target.value)} style={inp({ width: 52, height: 16 })} maxLength={8} /></td>
               </tr>
               <tr style={{ height: 18 }}>
-                <th style={thStyle}>{t.labelMaschinTyp}</th>
-                <td style={cellStyle}><input type="text" value={form.maschinTyp}  onChange={e => setField('maschinTyp', e.target.value)}  style={inp({ height: 16 })} /></td>
-                <th style={thStyle}>{t.labelMaschineNr}</th>
-                <td style={cellStyle}><input type="text" value={form.maschineNr}  onChange={e => setField('maschineNr', e.target.value)}  style={inp({ height: 16 })} maxLength={12} /></td>
+                <th style={thStyle}>{t.labelArtikelNr}</th>
+                <td style={cellStyle}><input type="text" value={form.artikelNr} onChange={e => setField('artikelNr', e.target.value)} style={inp({ height: 16 })} /></td>
+                <th style={thStyle}>{t.labelRegNr}</th>
+                <td style={cellStyle}><input type="text" value={form.regNr}     onChange={e => setField('regNr', e.target.value)}     style={inp({ height: 16 })} maxLength={12} /></td>
                 <th style={thStyle}>{t.labelKom}</th>
-                <td style={cellStyle}><input type="text" value={form.kom}          onChange={e => setField('kom', e.target.value)}          style={inp({ height: 16 })} /></td>
-                <th style={thStyle}>{t.labelBaujahr}</th>
+                <td style={cellStyle}><input type="text" value={form.kom}       onChange={e => setField('kom', e.target.value)}       style={inp({ height: 16 })} /></td>
+                <th style={thStyle}>{t.labelWartungDatumHead}</th>
                 <td style={{ ...cellStyle, width: 72 }}>
-                  <input type="month" value={form.baujahr} onChange={e => setField('baujahr', e.target.value)}
+                  <input type="date" value={form.wartungDatum} onChange={e => setField('wartungDatum', e.target.value)}
                     style={{ border: 'none', outline: 'none', fontFamily: 'Arial', fontSize: 7.5, background: 'transparent', color: '#000', colorScheme: 'light', padding: 0, width: 70, height: 16, cursor: 'pointer' }} />
                 </td>
               </tr>
             </tbody>
           </table>
 
-          {/* ── Aktueller Zustand ── */}
-          <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', marginTop: 4 }}>
-            <colgroup>
-              <col style={{ width: '47%' }} /><col style={{ width: '4%' }} />
-              <col style={{ width: '5%' }} /><col style={{ width: '44%' }} />
-            </colgroup>
-            <tbody>
-              {/* Divider-Zeile */}
-              <tr>
-                <td colSpan={4} style={{ background: '#cfdff5', fontWeight: 'bold', fontSize: 8, padding: '2px 4px', letterSpacing: '.03em', border: '1px solid #000' }}>
-                  {t.divAktZustand}
-                </td>
-              </tr>
-              {/* Menge pro Hub + Spülzeiten */}
-              <tr style={{ background: '#fff' }}>
-                <td colSpan={4} style={{ padding: '4px 6px', border: '1px solid #ccc' }}>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10, rowGap: 5 }}>
-                    {/* Menge pro Hub */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 8px', background: '#e8f0fe', border: '1px solid #4a6fa5', borderRadius: 4 }}>
-                      <span style={{ fontSize: 7.5, fontWeight: 'bold', color: '#1a2744', whiteSpace: 'nowrap' }}>{t.labelMengeHub}:</span>
-                      <input type="text" inputMode="decimal" value={form.istZustand.mengeHub}
-                        onChange={e => setForm(f => ({ ...f, istZustand: { ...f.istZustand, mengeHub: e.target.value } }))}
-                        style={{ width: 50, border: '1px solid #999', borderRadius: 2, fontSize: 9, textAlign: 'center', padding: '1px 2px', fontFamily: 'Arial', fontWeight: 'bold' }} />
-                      <span style={{ fontSize: 7.5 }}>{t.labelMengeHubUnit}</span>
-                    </div>
-                    {/* Eingestellte Mischung */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 8px', background: '#e8f0fe', border: '1px solid #4a6fa5', borderRadius: 4 }}>
-                      <span style={{ fontSize: 7.5, fontWeight: 'bold', color: '#1a2744', whiteSpace: 'nowrap' }}>Eingestellte Mischung:</span>
-                      <input type="text" inputMode="decimal" value={form.istZustand.mischung}
-                        onChange={e => setForm(f => ({ ...f, istZustand: { ...f.istZustand, mischung: e.target.value } }))}
-                        style={{ width: 50, border: '1px solid #999', borderRadius: 2, fontSize: 9, textAlign: 'center', padding: '1px 2px', fontFamily: 'Arial', fontWeight: 'bold' }} />
-                      <span style={{ fontSize: 7.5 }}>%</span>
-                    </div>
-                  </div>
-                </td>
-              </tr>
-              {/* Bemerkungen-Zeile */}
-              <tr style={{ background: '#f3f3f3' }}>
-                <td colSpan={4} style={{ padding: '3px 6px', border: '1px solid #ccc' }}>
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
-                    <span style={{ fontSize: 7.5, fontWeight: 'bold', color: '#333', whiteSpace: 'nowrap', flexShrink: 0, paddingTop: 3 }}>{t.labelBemerkungen}:</span>
-                    <textarea
-                      value={form.istZustand.bemerkung ?? ''}
-                      onFocus={() => setBemExpanded(true)}
-                      onBlur={() => setBemExpanded(false)}
-                      onChange={e => setForm(f => ({ ...f, istZustand: { ...f.istZustand, bemerkung: e.target.value } }))}
-                      rows={bemExpanded ? 5 : 2}
-                      style={{ flex: 1, border: '1px solid #bbb', borderRadius: 2, fontSize: 7.5, padding: '3px 4px', fontFamily: 'Arial', resize: 'vertical', transition: 'height 0.15s ease', lineHeight: 1.4 }} />
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+          {/* Teilenummern und Registriernummern */}
+          <div style={{ marginTop: 6, marginBottom: 6, border: '1px solid #000', padding: 6 }}>
+            <strong style={{ fontSize: 8.5, letterSpacing: '.03em' }}>{t.sectionTeile}</strong>
+            <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 4 }}>
+                <thead>
+                  <tr>
+                    <th style={{ border: '1px solid #000', padding: '2px 4px', textAlign: 'center', background: '#e0e0e0', fontWeight: 'bold', fontSize: 8, width: 32 }}>{t.thPos}</th>
+                    <th style={{ border: '1px solid #000', padding: '2px 4px', textAlign: 'center', background: '#e0e0e0', fontWeight: 'bold', fontSize: 8 }}>{t.thBezeichnung}</th>
+                    <th style={{ border: '1px solid #000', padding: '2px 4px', textAlign: 'center', background: '#e0e0e0', fontWeight: 'bold', fontSize: 8, width: 110 }}>{t.thTeilenummer}</th>
+                    <th style={{ border: '1px solid #000', padding: '2px 4px', textAlign: 'center', background: '#e0e0e0', fontWeight: 'bold', fontSize: 8, width: 110 }}>{t.thRegNr}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {form.teile.map((row, i) => (
+                    <tr key={i} style={{ background: i % 2 === 0 ? '#fff' : '#f3f3f3' }}>
+                      {(['pos', 'bezeichnung', 'teilenummer', 'registriernummer'] as (keyof TeilRow)[]).map(f => (
+                        <td key={f} style={{ border: '1px solid #000', padding: '1px 3px', fontSize: 8 }}>
+                          <input type="text" value={row[f]} onChange={e => setTeil(i, f, e.target.value)}
+                            placeholder={f === 'bezeichnung' && i === 0 ? 'Mittelteil' : ''}
+                            style={{ width: '100%', border: 'none', outline: 'none', padding: 1, background: 'transparent', color: '#000', fontSize: 8, fontFamily: 'Arial' }} />
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="no-print" style={{ marginTop: 4, display: 'flex', gap: 4 }}>
+              <button onClick={addTeil}
+                style={{ fontSize: 8, padding: '2px 10px', background: '#e8f0ff', border: '1px solid #99b', borderRadius: 3, cursor: 'pointer', fontFamily: 'Arial' }}>
+                {t.btnZeileHinzu}
+              </button>
+              <button onClick={removeTeil}
+                disabled={form.teile.length <= 1}
+                style={{ fontSize: 8, padding: '2px 10px', background: form.teile.length > 1 ? '#fdd' : '#eee', border: '1px solid #bbb', borderRadius: 3, cursor: form.teile.length > 1 ? 'pointer' : 'default', color: form.teile.length > 1 ? '#900' : '#999', fontFamily: 'Arial' }}>
+                {t.btnZeileEntf}
+              </button>
+            </div>
+          </div>
+
+          {/* Membrane und Flachdichtungen */}
+          <div style={{ marginTop: 6, marginBottom: 6, border: '1px solid #000', padding: 6 }}>
+            <strong style={{ fontSize: 8.5, letterSpacing: '.03em' }}>{t.sectionMembrane}</strong>
+            <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 4 }}>
+                <thead>
+                  <tr>
+                    <th style={{ border: '1px solid #000', padding: '2px 4px', textAlign: 'center', background: '#e0e0e0', fontWeight: 'bold', fontSize: 8, width: 32 }}>{t.thPos}</th>
+                    <th style={{ border: '1px solid #000', padding: '2px 4px', textAlign: 'center', background: '#e0e0e0', fontWeight: 'bold', fontSize: 8, width: 44 }}>{t.thStk}</th>
+                    <th style={{ border: '1px solid #000', padding: '2px 4px', textAlign: 'center', background: '#e0e0e0', fontWeight: 'bold', fontSize: 8 }}>{t.thBezeichnung}</th>
+                    <th style={{ border: '1px solid #000', padding: '2px 4px', textAlign: 'center', background: '#e0e0e0', fontWeight: 'bold', fontSize: 8, width: 110 }}>{t.thTeilenummer}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {form.membrane.map((row, i) => (
+                    <tr key={i} style={{ background: i % 2 === 0 ? '#fff' : '#f3f3f3' }}>
+                      {(['pos', 'stk', 'bezeichnung', 'teilenummer'] as (keyof MembranRow)[]).map(f => (
+                        <td key={f} style={{ border: '1px solid #000', padding: '1px 3px', fontSize: 8 }}>
+                          <input type="text" value={row[f]} onChange={e => setMembran(i, f, e.target.value)}
+                            placeholder={f === 'bezeichnung' && i === 0 ? 'Membrane' : ''}
+                            style={{ width: '100%', border: 'none', outline: 'none', padding: 1, background: 'transparent', color: '#000', fontSize: 8, fontFamily: 'Arial' }} />
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="no-print" style={{ marginTop: 4, display: 'flex', gap: 4 }}>
+              <button onClick={addMembran}
+                style={{ fontSize: 8, padding: '2px 10px', background: '#e8f0ff', border: '1px solid #99b', borderRadius: 3, cursor: 'pointer', fontFamily: 'Arial' }}>
+                {t.btnZeileHinzu}
+              </button>
+              <button onClick={removeMembran}
+                disabled={form.membrane.length <= 1}
+                style={{ fontSize: 8, padding: '2px 10px', background: form.membrane.length > 1 ? '#fdd' : '#eee', border: '1px solid #bbb', borderRadius: 3, cursor: form.membrane.length > 1 ? 'pointer' : 'default', color: form.membrane.length > 1 ? '#900' : '#999', fontFamily: 'Arial' }}>
+                {t.btnZeileEntf}
+              </button>
+            </div>
+          </div>
 
           {/* Prüftabelle Seite 1 */}
           <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
@@ -1211,9 +1358,13 @@ export default function WartungsprotokollPage() {
             <tbody>
               {alleZeilen.map((z, i) => (
                 <PruefZeile key={i} zeile={z}
-                  state={form.zeilenState[i] ?? { ck: 0, name: '', bem: '', value: '', extra: 0 }}
+                  state={form.zeilenState[i] ?? { ck: 0, name: '', bem: '' }}
                   onChange={p => setZeile(i, p)} rowIndex={i} t={t} />
               ))}
+              {/* Spezialzeilen direkt nach allen Prüfpunkten */}
+              {renderSpecial(0, S2_OFFSET)}
+              {renderSpecial(1, S2_OFFSET + 1)}
+              {renderSpecial(2, S2_OFFSET + 2)}
             </tbody>
           </table>
         </div>
@@ -1410,7 +1561,7 @@ export default function WartungsprotokollPage() {
             </div>
           </div>
 
-          {/* Teileliste */}
+          {/* Ersatzteile + Zubehör */}
           <div style={{ marginTop: 12, border: '1px solid #000', padding: 10 }}>
             <strong style={{ fontSize: 9, letterSpacing: '.03em' }}>{t.sectionMaterial}</strong>
             <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
@@ -1484,4 +1635,3 @@ export default function WartungsprotokollPage() {
     </>
   );
 }
-
