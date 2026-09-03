@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { FileText, Upload, Trash2, Download, Loader2, Home, Share2, Users, Upload as UploadCloud } from "lucide-react";
+import { FileText, Upload, Trash2, Download, Loader2, Home, Share2, Users, Upload as UploadCloud, FileOpen } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -290,6 +290,70 @@ export default function DokumentePage() {
     );
   };
 
+  const handleOpenDocument = async (doc: Document) => {
+    if (doc.file_type !== "application/json") {
+      toast({
+        title: "Nicht unterstützt",
+        description: "Nur JSON-Dokumente können geöffnet werden.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase.storage
+        .from("documents")
+        .download(doc.file_path);
+
+      if (error) throw error;
+
+      const text = await data.text();
+      const jsonData = JSON.parse(text);
+
+      // Protokoll-Typ aus JSON extrahieren
+      const protokollTyp = jsonData.protokollTyp || jsonData.type || "";
+
+      // Mapping von Protokoll-Typen zu Seiten
+      const routeMap: Record<string, string> = {
+        "servicebericht": "/ServiceberichtPage",
+        "wartung_gs": "/Wartungsprotokoll_GS",
+        "wartung_gsk": "/Wartungsprotokoll_GSK",
+        "wartung_dosieranlagen_462": "/Wartungsprotokoll_Dosieranlagen_462",
+        "wartung_dosieranlagen_464": "/Wartungsprotokoll_Dosieranlagen_464",
+        "wartung_spruehkopf": "/Wartungsprotokoll_Spruehkopf",
+        "scan_tab_g": "/Scan_Tab_G",
+      };
+
+      const targetRoute = routeMap[protokollTyp.toLowerCase()];
+
+      if (!targetRoute) {
+        toast({
+          title: "Unbekannter Protokoll-Typ",
+          description: `Protokoll-Typ "${protokollTyp}" wird nicht unterstützt.`,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Daten in localStorage speichern für die Zielseite
+      localStorage.setItem("importedFormData", JSON.stringify(jsonData));
+
+      toast({
+        title: "Protokoll wird geladen",
+        description: "Sie werden zum Formular weitergeleitet...",
+      });
+
+      // Zur Protokoll-Seite navigieren
+      router.push(targetRoute);
+    } catch (error: any) {
+      toast({
+        title: "Fehler beim Öffnen",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleDownload = async (doc: Document) => {
     try {
       const { data, error } = await supabase.storage
@@ -505,6 +569,16 @@ export default function DokumentePage() {
                           </div>
                         </div>
                         <div className="flex gap-2 shrink-0">
+                          {doc.file_type === "application/json" && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleOpenDocument(doc)}
+                              title="In Protokoll öffnen"
+                            >
+                              <FileOpen className="h-4 w-4" />
+                            </Button>
+                          )}
                           {!isAdmin && isOwnDocument(doc) && !doc.shared_with_all && (
                             <Button
                               variant="default"
