@@ -12,6 +12,8 @@ import { useToast } from "@/hooks/use-toast";
 import { FileText, Upload, Trash2, Download, Loader2, Home, Share2, Users } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface Document {
   id: string;
@@ -23,7 +25,14 @@ interface Document {
   description: string | null;
   user_id: string;
   shared_with_all: boolean;
+  shared_with_users: string[] | null;
   profiles?: any;
+}
+
+interface Techniker {
+  id: string;
+  full_name: string;
+  email: string;
 }
 
 export default function DokumentePage() {
@@ -36,6 +45,10 @@ export default function DokumentePage() {
   const [description, setDescription] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [techniker, setTechniker] = useState<Techniker[]>([]);
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [currentDoc, setCurrentDoc] = useState<Document | null>(null);
+  const [selectedTechniker, setSelectedTechniker] = useState<string[]>([]);
 
   useEffect(() => {
     checkUserRole();
@@ -54,17 +67,35 @@ export default function DokumentePage() {
         .eq("id", user.id)
         .single();
 
-      if (profile?.role === "Admin") {
-        setIsAdmin(true);
+      const adminMode = profile?.role === "Admin";
+      setIsAdmin(adminMode);
+
+      if (adminMode) {
+        await loadTechniker(user.id);
       }
 
-      await loadDocuments(user.id, profile?.role === "Admin");
+      await loadDocuments(user.id, adminMode);
     } catch (error: any) {
       toast({
         title: "Fehler",
         description: error.message,
         variant: "destructive",
       });
+    }
+  };
+
+  const loadTechniker = async (currentAdminId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, full_name, email")
+        .neq("id", currentAdminId)
+        .order("full_name");
+
+      if (error) throw error;
+      setTechniker(data as Techniker[]);
+    } catch (error: any) {
+      console.error("Fehler beim Laden der Techniker:", error);
     }
   };
 
@@ -78,9 +109,10 @@ export default function DokumentePage() {
         `)
         .order("uploaded_at", { ascending: false });
 
-      // Admin sieht alle Dokumente, normale User nur eigene + freigegebene
+      // Admin sieht alle Dokumente
+      // Techniker sehen nur ihre eigenen Dokumente (shared_with_all wurde entfernt)
       if (!adminMode) {
-        query = query.or(`user_id.eq.${userId},shared_with_all.eq.true`);
+        query = query.eq("user_id", userId);
       }
 
       const { data, error } = await query;
@@ -187,22 +219,29 @@ export default function DokumentePage() {
     }
   };
 
-  const handleToggleShare = async (doc: Document) => {
+  const openShareDialog = (doc: Document) => {
+    setCurrentDoc(doc);
+    setSelectedTechniker(doc.shared_with_users || []);
+    setShareDialogOpen(true);
+  };
+
+  const handleUpdateShare = async () => {
+    if (!currentDoc) return;
+
     try {
       const { error } = await supabase
         .from("documents")
-        .update({ shared_with_all: !doc.shared_with_all })
-        .eq("id", doc.id);
+        .update({ shared_with_users: selectedTechniker })
+        .eq("id", currentDoc.id);
 
       if (error) throw error;
 
       toast({
-        title: doc.shared_with_all ? "Freigabe entfernt" : "Freigegeben",
-        description: doc.shared_with_all 
-          ? "Dokument ist jetzt privat." 
-          : "Dokument ist jetzt für alle sichtbar.",
+        title: "Freigabe aktualisiert",
+        description: `Dokument für ${selectedTechniker.length} Techniker freigegeben.`,
       });
 
+      setShareDialogOpen(false);
       if (currentUserId) {
         await loadDocuments(currentUserId, isAdmin);
       }
@@ -213,6 +252,14 @@ export default function DokumentePage() {
         variant: "destructive",
       });
     }
+  };
+
+  const toggleTechniker = (technikerId: string) => {
+    setSelectedTechniker(prev =>
+      prev.includes(technikerId)
+        ? prev.filter(id => id !== technikerId)
+        : [...prev, technikerId]
+    );
   };
 
   const handleDownload = async (doc: Document) => {
@@ -401,7 +448,13 @@ export default function DokumentePage() {
                               {doc.shared_with_all && (
                                 <Badge variant="secondary" className="shrink-0">
                                   <Users className="h-3 w-3 mr-1" />
-                                  Freigegeben
+                                  Öffentlich
+                                </Badge>
+                              )}
+                              {doc.shared_with_users && doc.shared_with_users.length > 0 && (
+                                <Badge variant="outline" className="shrink-0">
+                                  <Users className="h-3 w-3 mr-1" />
+                                  {doc.shared_with_users.length} Techniker
                                 </Badge>
                               )}
                               {!isOwnDocument(doc) && (
@@ -421,10 +474,10 @@ export default function DokumentePage() {
                         <div className="flex gap-2 shrink-0">
                           {isAdmin && (
                             <Button
-                              variant={doc.shared_with_all ? "default" : "outline"}
+                              variant="outline"
                               size="sm"
-                              onClick={() => handleToggleShare(doc)}
-                              title={doc.shared_with_all ? "Freigabe entfernen" : "Für alle freigeben"}
+                              onClick={() => openShareDialog(doc)}
+                              title="Freigabe verwalten"
                             >
                               <Share2 className="h-4 w-4" />
                             </Button>
@@ -456,6 +509,49 @@ export default function DokumentePage() {
             </Card>
           </div>
         </main>
+
+        <Dialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Dokument freigeben</DialogTitle>
+              <DialogDescription>
+                Wählen Sie die Techniker aus, die Zugriff auf "{currentDoc?.file_name}" erhalten sollen.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="max-h-[300px] overflow-y-auto space-y-2 py-4">
+              {techniker.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  Keine Techniker verfügbar.
+                </p>
+              ) : (
+                techniker.map((tech) => (
+                  <div key={tech.id} className="flex items-center space-x-2 p-2 hover:bg-accent rounded">
+                    <Checkbox
+                      id={tech.id}
+                      checked={selectedTechniker.includes(tech.id)}
+                      onCheckedChange={() => toggleTechniker(tech.id)}
+                    />
+                    <label
+                      htmlFor={tech.id}
+                      className="flex-1 text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                    >
+                      {tech.full_name}
+                      <span className="block text-xs text-muted-foreground">{tech.email}</span>
+                    </label>
+                  </div>
+                ))
+              )}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShareDialogOpen(false)}>
+                Abbrechen
+              </Button>
+              <Button onClick={handleUpdateShare}>
+                Speichern
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </AuthGuard>
   );

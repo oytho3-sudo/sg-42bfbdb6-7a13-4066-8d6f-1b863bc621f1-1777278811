@@ -1,6 +1,14 @@
 'use client';
 
 import { useRef, useState, useEffect, useCallback, useMemo } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Supabase
+// ═══════════════════════════════════════════════════════════════════════════════
+const DOCUMENTS_BUCKET = 'documents';
+const DOCUMENTS_TABLE  = 'documents';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Artikelliste – wird einmalig aus der TXT-Datei geladen
@@ -44,7 +52,8 @@ const translations = {
   de: {
     loadJson:             '📂 JSON laden',
     savePdf:              '⬇ Als PDF speichern',
-    shareJson:            '📤 JSON teilen',
+    uploadJson:           '📤 In Storage speichern',
+    uploadingJson:        '📤 Speichere …',
     saveJson:             '💾 JSON speichern',
     toolbarTitle:         'Servicebericht · GERLIEVA Sprühtechnik GmbH',
     home:                 '🏠 Home',
@@ -55,6 +64,9 @@ const translations = {
     toastInvalid:         'Ungültige JSON-Datei',
     toastError:           'Fehler: ',
     toastLoadError:       'Fehler beim Laden: ',
+    toastUploaded:        '✅ In Storage gespeichert!',
+    toastUploadError:     'Fehler beim Hochladen: ',
+    toastNotLoggedIn:     'Bitte zuerst anmelden.',
     docTitle:             'Servicebericht',
     sectionKunde:         'Kunde',
     sectionMaschine:      'Anlage',
@@ -122,7 +134,8 @@ const translations = {
   en: {
     loadJson:             '📂 Load JSON',
     savePdf:              '⬇ Save as PDF',
-    shareJson:            '📤 Share JSON',
+    uploadJson:           '📤 Save to storage',
+    uploadingJson:        '📤 Saving …',
     saveJson:             '💾 Save JSON',
     toolbarTitle:         'Service Report · GERLIEVA Sprühtechnik GmbH',
     home:                 '🏠 Home',
@@ -133,6 +146,9 @@ const translations = {
     toastInvalid:         'Invalid JSON file',
     toastError:           'Error: ',
     toastLoadError:       'Error loading file: ',
+    toastUploaded:        '✅ Saved to storage!',
+    toastUploadError:     'Error uploading: ',
+    toastNotLoggedIn:     'Please sign in first.',
     docTitle:             'Service Report',
     sectionKunde:         'Customer',
     sectionMaschine:      'Plant',
@@ -200,7 +216,8 @@ const translations = {
   fr: {
     loadJson:             '📂 Charger JSON',
     savePdf:              '⬇ Enregistrer en PDF',
-    shareJson:            '📤 Partager JSON',
+    uploadJson:           '📤 Enregistrer dans le stockage',
+    uploadingJson:        '📤 Enregistrement …',
     saveJson:             '💾 Sauvegarder JSON',
     toolbarTitle:         'Rapport de service · GERLIEVA Sprühtechnik GmbH',
     home:                 '🏠 Accueil',
@@ -211,6 +228,9 @@ const translations = {
     toastInvalid:         'Fichier JSON invalide',
     toastError:           'Erreur : ',
     toastLoadError:       'Erreur de chargement : ',
+    toastUploaded:        '✅ Enregistré dans le stockage !',
+    toastUploadError:     "Erreur lors de l'envoi : ",
+    toastNotLoggedIn:     "Merci de vous connecter d'abord.",
     docTitle:             'Rapport de service',
     sectionKunde:         'Client',
     sectionMaschine:      'Installation',
@@ -625,22 +645,6 @@ function SigPreview({ dataUrl, onClick, tapLabel }: { dataUrl?: string; onClick:
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// Toast
-// ═══════════════════════════════════════════════════════════════════════════════
-
-function Toast({ msg, type, visible }: { msg: string; type: 'success' | 'error' | ''; visible: boolean }) {
-  return (
-    <div style={{
-      position: 'fixed', bottom: 80, left: '50%', transform: 'translateX(-50%)',
-      background: type === 'success' ? '#1a7a3a' : type === 'error' ? '#c53a08' : '#333',
-      color: 'white', padding: '12px 24px', borderRadius: 8, fontSize: 14, zIndex: 10000,
-      opacity: visible ? 1 : 0, transition: 'opacity 0.3s ease', pointerEvents: 'none',
-      maxWidth: '90%', textAlign: 'center', boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-    }}>{msg}</div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
 // Main Component
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -650,10 +654,11 @@ export default function ServiceberichtPage() {
 
   const [form, setForm]         = useState<FormData>(initialForm);
   const [sigModal, setSigModal] = useState<{ id: 'sig-gerlieva' | 'sig-kunde'; label: string } | null>(null);
-  const [toast, setToast]       = useState<{ msg: string; type: 'success' | 'error' | ''; visible: boolean }>({ msg: '', type: '', visible: false });
+  const [uploading, setUploading] = useState(false);
   const [toolbarH, setToolbarH] = useState(52);
   const fileInputRef  = useRef<HTMLInputElement>(null);
   const toolbarRef    = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
 
   // ── Artikelliste für Autocomplete ──────────────────────────────────────────
   const [artikel, setArtikel] = useState<ArtikelEntry[]>([]);
@@ -720,8 +725,7 @@ export default function ServiceberichtPage() {
   }, []);
 
   const showToast = (msg: string, type: 'success' | 'error') => {
-    setToast({ msg, type, visible: true });
-    setTimeout(() => setToast(p => ({ ...p, visible: false })), 2500);
+    toast({ description: msg, variant: type === 'error' ? 'destructive' : 'default', duration: 3000 });
   };
 
   // ── Field helpers ──────────────────────────────────────────────────────────
@@ -817,25 +821,51 @@ export default function ServiceberichtPage() {
     } catch (err: unknown) { showToast(t.toastError + (err as Error).message, 'error'); }
   };
 
-  const handleShare = async () => {
-    const jsonStr = JSON.stringify(collectFormData(), null, 2);
-    const fileName = getFileName('json').replace(/\.json$/, '.txt');
-    const blob = new Blob([jsonStr], { type: 'text/plain' });
-    const file = new File([blob], fileName, { type: 'text/plain' });
+  const buildDescription = () => {
+    const kunde = form.kundeName || '–';
+    const datum = new Date().toISOString().slice(0, 10);
+    return `Servicebericht · Kunde ${kunde} · ${datum}`;
+  };
+
+  const handleUploadToStorage = async () => {
+    if (uploading) return;
+    setUploading(true);
     try {
-      if (typeof navigator.share === 'function' && typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] })) {
-        await navigator.share({ title: 'Servicebericht GERLIEVA', files: [file] });
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      if (userError || !userData?.user) {
+        showToast(t.toastNotLoggedIn, 'error');
         return;
       }
-    } catch (e) {
-      if ((e as Error).name === 'AbortError') return;
+      const user = userData.user;
+
+      const jsonStr  = JSON.stringify(collectFormData(), null, 2);
+      const blob     = new Blob([jsonStr], { type: 'application/json' });
+      const fileName = getFileName('json');
+      const filePath = `${user.id}/${Date.now()}.json`;
+
+      // Hochladen in Storage
+      const { error: uploadError } = await supabase.storage
+        .from(DOCUMENTS_BUCKET)
+        .upload(filePath, blob, { contentType: 'application/json' });
+      if (uploadError) throw uploadError;
+
+      // Eintrag in Tabelle
+      const { error: insertError } = await supabase.from(DOCUMENTS_TABLE).insert({
+        user_id: user.id,
+        file_name: fileName,
+        file_path: filePath,
+        file_size: blob.size,
+        file_type: 'application/json',
+        description: buildDescription(),
+      });
+      if (insertError) throw insertError;
+
+      showToast(t.toastUploaded, 'success');
+    } catch (err: unknown) {
+      showToast(t.toastUploadError + (err as Error).message, 'error');
+    } finally {
+      setUploading(false);
     }
-    // Fallback: Download als .json
-    const url = URL.createObjectURL(new Blob([jsonStr], { type: 'application/json' }));
-    const a = document.createElement('a'); a.href = url; a.download = getFileName('json');
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 2000);
-    showToast(t.toastDownloaded, 'success');
   };
 
   const handlePdf  = () => { alert(t.pdfAlert); window.print(); };
@@ -869,7 +899,9 @@ export default function ServiceberichtPage() {
       <div ref={toolbarRef} style={s.toolbar} className="no-print">
         <button onClick={() => fileInputRef.current?.click()} style={{ ...s.tbtn, background: '#8e24aa' }}>{t.loadJson}</button>
         <button onClick={handlePdf}   style={{ ...s.tbtn, background: '#e8460a' }}>{t.savePdf}</button>
-        <button onClick={handleShare} style={{ ...s.tbtn, background: '#1a7a3a' }}>{t.shareJson}</button>
+        <button onClick={handleUploadToStorage} disabled={uploading} style={{ ...s.tbtn, background: '#1a7a3a', opacity: uploading ? 0.6 : 1, cursor: uploading ? 'default' : 'pointer' }}>
+          {uploading ? t.uploadingJson : t.uploadJson}
+        </button>
         <button onClick={handleSave}  style={{ ...s.tbtn, background: '#1a5fa8' }}>{t.saveJson}</button>
         <span style={{ color: '#a8b8d8', fontSize: 9, display: 'none' }} className="toolbar-title">{t.toolbarTitle}</span>
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -1436,7 +1468,6 @@ export default function ServiceberichtPage() {
         <SignatureModal label={sigModal.label} existing={form.signatures[sigModal.id]}
           onClose={dataUrl => handleSigClose(sigModal.id, dataUrl)} t={t} />
       )}
-      <Toast msg={toast.msg} type={toast.type} visible={toast.visible} />
     </>
   );
 }
