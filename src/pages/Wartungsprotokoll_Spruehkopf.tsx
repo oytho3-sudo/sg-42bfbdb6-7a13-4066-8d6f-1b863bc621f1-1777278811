@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -973,8 +973,11 @@ export default function WartungsprotokollPage() {
       const { error: uploadError } = await supabase.storage.from(DOCUMENTS_BUCKET).upload(filepath, blob, { upsert: true });
       if (uploadError) throw uploadError;
       const { error: insertError } = await supabase.from(DOCUMENTS_TABLE).insert({
-        user_id: user.id, document_type: DOKUMENT_TYP, filename, file_path: filepath,
-        metadata: { protokollNr: form.protokollNr, kunde: form.kunde, wartungDatum: form.wartungDatum }
+        user_id: user.id,
+        file_name: filename,
+        file_path: filepath,
+        file_type: 'application/json',
+        file_size: blob.size
       });
       if (insertError) throw insertError;
       toast({ title: t.toastUploaded, duration: 2000 });
