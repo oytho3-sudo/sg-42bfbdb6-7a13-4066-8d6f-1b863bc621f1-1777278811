@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { FileText, Upload, Trash2, Download, Loader2, Home, Share2, Users } from "lucide-react";
+import { FileText, Upload, Trash2, Download, Loader2, Home, Share2, Users, Upload as UploadCloud } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -254,6 +254,32 @@ export default function DokumentePage() {
     }
   };
 
+  const handlePublish = async (doc: Document) => {
+    try {
+      const { error } = await supabase
+        .from("documents")
+        .update({ shared_with_all: true })
+        .eq("id", doc.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Veröffentlicht",
+        description: "Dokument ist jetzt für Admins sichtbar.",
+      });
+
+      if (currentUserId) {
+        await loadDocuments(currentUserId, isAdmin);
+      }
+    } catch (error: any) {
+      toast({
+        title: "Fehler",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   const toggleTechniker = (technikerId: string) => {
     setSelectedTechniker(prev =>
       prev.includes(technikerId)
@@ -448,7 +474,12 @@ export default function DokumentePage() {
                               {doc.shared_with_all && (
                                 <Badge variant="secondary" className="shrink-0">
                                   <Users className="h-3 w-3 mr-1" />
-                                  Öffentlich
+                                  Veröffentlicht
+                                </Badge>
+                              )}
+                              {!doc.shared_with_all && isOwnDocument(doc) && (
+                                <Badge variant="outline" className="shrink-0">
+                                  Privat
                                 </Badge>
                               )}
                               {doc.shared_with_users && doc.shared_with_users.length > 0 && (
@@ -472,6 +503,16 @@ export default function DokumentePage() {
                           </div>
                         </div>
                         <div className="flex gap-2 shrink-0">
+                          {!isAdmin && isOwnDocument(doc) && !doc.shared_with_all && (
+                            <Button
+                              variant="default"
+                              size="sm"
+                              onClick={() => handlePublish(doc)}
+                              title="Für Admins veröffentlichen"
+                            >
+                              <UploadCloud className="h-4 w-4" />
+                            </Button>
+                          )}
                           {isAdmin && (
                             <Button
                               variant="outline"
