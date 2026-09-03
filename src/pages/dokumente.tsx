@@ -109,9 +109,11 @@ export default function DokumentePage() {
         `)
         .order("uploaded_at", { ascending: false });
 
-      // Admin sieht alle Dokumente
-      // Techniker sehen nur ihre eigenen Dokumente (shared_with_all wurde entfernt)
-      if (!adminMode) {
+      // Admin sieht nur veröffentlichte Dokumente (shared_with_all = true)
+      // Techniker sehen nur ihre eigenen Dokumente (RLS filtert automatisch)
+      if (adminMode) {
+        query = query.eq("shared_with_all", true);
+      } else {
         query = query.eq("user_id", userId);
       }
 
