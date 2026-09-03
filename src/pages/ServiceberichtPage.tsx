@@ -11,6 +11,12 @@ const DOCUMENTS_BUCKET = 'documents';
 const DOCUMENTS_TABLE  = 'documents';
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// Dokumenttyp – eindeutiges Kennzeichen in der JSON (zur Unterscheidung von z. B.
+// Sprühkopf-Wartungsprotokoll-JSONs), wird beim Laden geprüft
+// ═══════════════════════════════════════════════════════════════════════════════
+const DOKUMENT_TYP = 'servicebericht' as const;
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // Artikelliste – wird einmalig aus der TXT-Datei geladen
 // Format: "TEILENUMMER\tBESCHREIBUNG" pro Zeile
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -62,6 +68,7 @@ const translations = {
     toastDownloaded:      '✅ JSON heruntergeladen!',
     toastLoaded:          '✅ Datei erfolgreich geladen!',
     toastInvalid:         'Ungültige JSON-Datei',
+    toastWrongType:       'Diese JSON-Datei gehört zu einem anderen Protokolltyp (kein Servicebericht).',
     toastError:           'Fehler: ',
     toastLoadError:       'Fehler beim Laden: ',
     toastUploaded:        '✅ In Storage gespeichert!',
@@ -144,6 +151,7 @@ const translations = {
     toastDownloaded:      '✅ JSON downloaded!',
     toastLoaded:          '✅ File loaded successfully!',
     toastInvalid:         'Invalid JSON file',
+    toastWrongType:       'This JSON file belongs to a different document type (not a service report).',
     toastError:           'Error: ',
     toastLoadError:       'Error loading file: ',
     toastUploaded:        '✅ Saved to storage!',
@@ -226,6 +234,7 @@ const translations = {
     toastDownloaded:      '✅ JSON téléchargé !',
     toastLoaded:          '✅ Fichier chargé avec succès !',
     toastInvalid:         'Fichier JSON invalide',
+    toastWrongType:       "Ce fichier JSON appartient à un autre type de document (pas un rapport de service).",
     toastError:           'Erreur : ',
     toastLoadError:       'Erreur de chargement : ',
     toastUploaded:        '✅ Enregistré dans le stockage !',
@@ -329,6 +338,7 @@ interface ReiseZeile {
   tagTyp:   '' | 'feiertag' | 'samstag' | 'sonntag';
 }
 interface FormData {
+  dokumentTyp: typeof DOKUMENT_TYP;
   version: number; ts: string;
   kundeName: string; kundeStrasse: string; kundeTelefon: string; kundeReferenz: string;
   kundeRechnungsnummer: string;
@@ -360,6 +370,7 @@ const emptyMaterial  = (): MaterialRow  => ({ pos: '', beschreibung: '', teilenu
 const emptyReise     = (): ReiseZeile   => ({ datum: '', vonZeit: '', bisZeit: '', pauseMin: '', tagTyp: '' });
 
 const initialForm = (): FormData => ({
+  dokumentTyp: DOKUMENT_TYP,
   version: 2, ts: '',
   kundeName: '', kundeStrasse: '', kundeTelefon: '', kundeReferenz: '',
   kundeRechnungsnummer: '',
@@ -792,9 +803,10 @@ export default function ServiceberichtPage() {
   };
 
   // ── JSON I/O ───────────────────────────────────────────────────────────────
-  const collectFormData = () => ({ ...form, ts: new Date().toISOString() });
+  const collectFormData = () => ({ ...form, dokumentTyp: DOKUMENT_TYP, ts: new Date().toISOString() });
   const applyFormData   = (data: FormData) => {
     if (!data || (data.version !== 1 && data.version !== 2)) { showToast(t.toastInvalid, 'error'); return; }
+    if (data.dokumentTyp && data.dokumentTyp !== DOKUMENT_TYP) { showToast(t.toastWrongType, 'error'); return; }
     // Migration: ältere Dateien (version 1) haben keine Reisefelder → mit Leerfeldern ergänzen
     const migrated: FormData = {
       reiseAnreise:  { datum: '', vonZeit: '', bisZeit: '', pauseMin: '', tagTyp: '' as const },
@@ -803,6 +815,7 @@ export default function ServiceberichtPage() {
       reiseMittel:   { pkw: false, zug: false, flugzeug: false, leihwagen: false },
       kundeRechnungsnummer: '',
       ...data,
+      dokumentTyp: DOKUMENT_TYP,
       version: 2,
     };
     setForm(migrated);

@@ -11,6 +11,12 @@ const DOCUMENTS_BUCKET = 'documents';
 const DOCUMENTS_TABLE  = 'documents';
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// Dokumenttyp – eindeutiges Kennzeichen in der JSON (zur Unterscheidung von z. B.
+// Servicebericht-JSONs), wird beim Laden geprüft
+// ═══════════════════════════════════════════════════════════════════════════════
+const DOKUMENT_TYP = 'spruehkopfwartung' as const;
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // i18n
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -29,6 +35,7 @@ const translations = {
     toastDownloaded:'✅ JSON heruntergeladen!',
     toastLoaded:    '✅ Datei erfolgreich geladen!',
     toastInvalid:   'Ungültige JSON-Datei',
+    toastWrongType: 'Diese JSON-Datei gehört zu einem anderen Protokolltyp (kein Sprühkopf-Wartungsprotokoll).',
     toastError:     'Fehler: ',
     toastLoadError: 'Fehler beim Laden: ',
     toastUploaded:  '✅ In Storage gespeichert!',
@@ -143,6 +150,7 @@ const translations = {
     toastDownloaded:'✅ JSON downloaded!',
     toastLoaded:    '✅ File loaded successfully!',
     toastInvalid:   'Invalid JSON file',
+    toastWrongType: 'This JSON file belongs to a different document type (not a spray head maintenance report).',
     toastError:     'Error: ',
     toastLoadError: 'Error loading file: ',
     toastUploaded:  '✅ Saved to storage!',
@@ -252,6 +260,7 @@ const translations = {
     toastDownloaded:'✅ JSON téléchargé !',
     toastLoaded:    '✅ Fichier chargé avec succès !',
     toastInvalid:   'Fichier JSON invalide',
+    toastWrongType: "Ce fichier JSON appartient à un autre type de document (pas un protocole de maintenance de tête de pulvérisation).",
     toastError:     'Erreur : ',
     toastLoadError: 'Erreur de chargement : ',
     toastUploaded:  '✅ Enregistré dans le stockage !',
@@ -399,6 +408,7 @@ interface Monteur {
 }
 
 interface FormData {
+  dokumentTyp:   typeof DOKUMENT_TYP;
   version:       number;
   ts:            string;
   kunde:         string;
@@ -460,6 +470,7 @@ const emptyTeil     = (): TeilRow => ({ pos: '', bezeichnung: '', teilenummer: '
 const emptyMembran  = (): MembranRow => ({ pos: '', stk: '', bezeichnung: '', teilenummer: '' });
 
 const initialForm = (): FormData => ({
+  dokumentTyp:   DOKUMENT_TYP,
   version:       1,
   ts:            '',
   kunde:         '',
@@ -988,11 +999,12 @@ export default function SpruehkopfWartungsprotokollPage() {
   const getFileNameFn = (ext: string) => buildFileName(ext, form.kundenNr);
 
   // ── JSON I/O ───────────────────────────────────────────────────────────────
-  const collectFormData = () => ({ ...form, ts: new Date().toISOString() });
+  const collectFormData = () => ({ ...form, dokumentTyp: DOKUMENT_TYP, ts: new Date().toISOString() });
 
   const applyFormData = (data: FormData) => {
     if (!data || data.version !== 1) { showToast(t.toastInvalid, 'error'); return; }
-    setForm(data);
+    if (data.dokumentTyp && data.dokumentTyp !== DOKUMENT_TYP) { showToast(t.toastWrongType, 'error'); return; }
+    setForm({ ...data, dokumentTyp: DOKUMENT_TYP });
     showToast(t.toastLoaded, 'success');
   };
 
