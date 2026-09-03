@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { FileText, Upload, Trash2, Download, Loader2, Home, Share2, Users, Upload as UploadCloud, FileOpen } from "lucide-react";
+import { FileText, Upload, Trash2, Download, Loader2, Home, Share2, Users, Upload as UploadCloud, FolderOpen } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -576,7 +576,7 @@ export default function DokumentePage() {
                               onClick={() => handleOpenDocument(doc)}
                               title="In Protokoll öffnen"
                             >
-                              <FileOpen className="h-4 w-4" />
+                              <FolderOpen className="h-4 w-4" />
                             </Button>
                           )}
                           {!isAdmin && isOwnDocument(doc) && !doc.shared_with_all && (
