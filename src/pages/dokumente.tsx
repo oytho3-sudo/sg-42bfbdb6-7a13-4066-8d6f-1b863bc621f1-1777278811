@@ -309,28 +309,72 @@ export default function DokumentePage() {
       const text = await data.text();
       const jsonData = JSON.parse(text);
 
-      // Protokoll-Typ aus JSON extrahieren
-      const protokollTyp = jsonData.protokollTyp || jsonData.type || "";
+      // Debug: JSON-Struktur anzeigen
+      console.log("JSON-Daten:", jsonData);
+      console.log("Verfügbare Felder:", Object.keys(jsonData));
 
-      // Mapping von Protokoll-Typen zu Seiten
+      // Protokoll-Typ aus verschiedenen möglichen Feldern extrahieren
+      const protokollTyp = 
+        jsonData.protokollTyp || 
+        jsonData.type || 
+        jsonData.formType ||
+        jsonData.protokoll_typ ||
+        jsonData.protocolType ||
+        "";
+
+      console.log("Erkannter Protokoll-Typ:", protokollTyp);
+
+      // Erweitetes Mapping von Protokoll-Typen zu Seiten
+      // Unterstützt verschiedene Schreibweisen
       const routeMap: Record<string, string> = {
+        // Servicebericht
         "servicebericht": "/ServiceberichtPage",
+        "service_bericht": "/ServiceberichtPage",
+        "ServiceberichtPage": "/ServiceberichtPage",
+        
+        // Wartung GS
         "wartung_gs": "/Wartungsprotokoll_GS",
+        "wartungsprotokoll_gs": "/Wartungsprotokoll_GS",
+        "Wartungsprotokoll_GS": "/Wartungsprotokoll_GS",
+        
+        // Wartung GSK
         "wartung_gsk": "/Wartungsprotokoll_GSK",
+        "wartungsprotokoll_gsk": "/Wartungsprotokoll_GSK",
+        "Wartungsprotokoll_GSK": "/Wartungsprotokoll_GSK",
+        
+        // Wartung Dosieranlagen 462
         "wartung_dosieranlagen_462": "/Wartungsprotokoll_Dosieranlagen_462",
+        "wartungsprotokoll_dosieranlagen_462": "/Wartungsprotokoll_Dosieranlagen_462",
+        "Wartungsprotokoll_Dosieranlagen_462": "/Wartungsprotokoll_Dosieranlagen_462",
+        
+        // Wartung Dosieranlagen 464
         "wartung_dosieranlagen_464": "/Wartungsprotokoll_Dosieranlagen_464",
+        "wartungsprotokoll_dosieranlagen_464": "/Wartungsprotokoll_Dosieranlagen_464",
+        "Wartungsprotokoll_Dosieranlagen_464": "/Wartungsprotokoll_Dosieranlagen_464",
+        
+        // Wartung Sprühkopf
         "wartung_spruehkopf": "/Wartungsprotokoll_Spruehkopf",
+        "wartungsprotokoll_spruehkopf": "/Wartungsprotokoll_Spruehkopf",
+        "Wartungsprotokoll_Spruehkopf": "/Wartungsprotokoll_Spruehkopf",
+        "wartung_sprühkopf": "/Wartungsprotokoll_Spruehkopf",
+        
+        // Scan Tab G
         "scan_tab_g": "/Scan_Tab_G",
+        "Scan_Tab_G": "/Scan_Tab_G",
       };
 
-      const targetRoute = routeMap[protokollTyp.toLowerCase()];
+      const targetRoute = routeMap[protokollTyp] || routeMap[protokollTyp.toLowerCase()];
 
       if (!targetRoute) {
+        // Zeige detaillierte Fehlermeldung mit allen verfügbaren Daten
         toast({
           title: "Unbekannter Protokoll-Typ",
-          description: `Protokoll-Typ "${protokollTyp}" wird nicht unterstützt.`,
+          description: `Protokoll-Typ "${protokollTyp}" wird nicht unterstützt. Bitte öffnen Sie die Browser-Konsole (F12) für Details.`,
           variant: "destructive",
         });
+        console.error("Unbekannter Protokoll-Typ:", protokollTyp);
+        console.error("Vollständige JSON-Daten:", jsonData);
+        console.error("Unterstützte Protokoll-Typen:", Object.keys(routeMap));
         return;
       }
 
@@ -350,6 +394,7 @@ export default function DokumentePage() {
         description: error.message,
         variant: "destructive",
       });
+      console.error("Fehler beim Öffnen des Dokuments:", error);
     }
   };
 
