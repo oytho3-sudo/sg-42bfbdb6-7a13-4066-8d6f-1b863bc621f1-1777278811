@@ -893,7 +893,7 @@ const printStyles = `
 // Logo
 // ═══════════════════════════════════════════════════════════════════════════════
 
-
+const LOGO_B64 = '';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Haupt-Komponente
@@ -1206,7 +1206,6 @@ export default function WartungsprotokollPage() {
             <tbody>
               <tr>
                 <td rowSpan={3} style={{ border: '1px solid #000', verticalAlign: 'middle', textAlign: 'center', padding: 0, overflow: 'hidden' }}>
-                  <img src={`data:image/jpeg;base64,${LOGO_B64}`} alt="Logo" style={{ height: 36, display: 'block', margin: '0 auto' }} />
                 </td>
                 <td colSpan={6} style={{ border: '1px solid #000', padding: 1 }}></td>
                 <th colSpan={2} style={{ border: '1px solid #000', textAlign: 'right', fontWeight: 'bold', fontSize: 11 }}>{t.labelWartung}</th>
