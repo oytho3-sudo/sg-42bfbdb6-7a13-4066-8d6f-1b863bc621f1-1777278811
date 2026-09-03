@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -888,479 +888,807 @@ const printStyles = `
 // ═══════════════════════════════════════════════════════════════════════════════
 // Logo
 // ═══════════════════════════════════════════════════════════════════════════════
-
-const LOGO_B64 = '';
+// Firmenlogo als eigenständige Bilddatei referenziert (statt riesigem Base64-String).
+// Datei "gerlieva-logo.png" ins public-Verzeichnis des Projekts legen (Next.js: /public/gerlieva-logo.png),
+// dann ist sie unter dem Pfad "/gerlieva-logo.png" erreichbar. Pfad bei Bedarf anpassen.
+const LOGO_SRC = '/gerlieva-logo.png';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Haupt-Komponente
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export default function WartungsprotokollPage() {
+export default function SpruehkopfWartungsprotokollPage() {
   const [lang, setLang]         = useState<Lang>('de');
   const t = translations[lang] as T;
 
   const [form, setForm]         = useState<FormData>(initialForm);
-  const [sigModal, setSigModal] = useState<{ key: string; label: string } | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
-
+  const [sigModal, setSigModal] = useState<{ id: 'sig-gerlieva' | 'sig-kunde'; label: string } | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef  = useRef<HTMLInputElement>(null);
+  const toolbarRef    = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const u = (changes: Partial<FormData>) => setForm(f => ({ ...f, ...changes }));
-  const uMonteur = (idx: number, changes: Partial<Monteur>) => {
-    const arr = [...form.monteure]; arr[idx] = { ...arr[idx], ...changes }; u({ monteure: arr });
-  };
-  const uTag = (mIdx: number, tIdx: number, changes: Partial<MontagTag>) => {
-    const arr = [...form.monteure];
-    const tage = [...arr[mIdx].tage];
-    tage[tIdx] = { ...tage[tIdx], ...changes };
-    arr[mIdx] = { ...arr[mIdx], tage };
-    u({ monteure: arr });
-  };
-  const uZeile = (idx: number, changes: Partial<ZeilenState>) => {
-    const arr = [...form.zeilenState]; arr[idx] = { ...arr[idx], ...changes }; u({ zeilenState: arr });
-  };
-  const uMat = (idx: number, changes: Partial<MaterialRow>) => {
-    const arr = [...form.material]; arr[idx] = { ...arr[idx], ...changes }; u({ material: arr });
-  };
-  const uTeil = (idx: number, changes: Partial<TeilRow>) => {
-    const arr = [...form.teile]; arr[idx] = { ...arr[idx], ...changes }; u({ teile: arr });
-  };
-  const uMembran = (idx: number, changes: Partial<MembranRow>) => {
-    const arr = [...form.membrane]; arr[idx] = { ...arr[idx], ...changes }; u({ membrane: arr });
-  };
-  const collectFormData = () => ({ ...form, dokumentTyp: DOKUMENT_TYP, version: 1, ts: new Date().toISOString() });
-
-  const handleSaveJSON = () => {
-    const json = JSON.stringify(collectFormData(), null, 2);
-    const blob = new Blob([json], { type: 'application/json' });
-    const url  = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = buildFileName('json', form.protokollNr);
-    a.click(); URL.revokeObjectURL(url);
-    toast({ title: t.toastSaved, duration: 2000 });
-  };
-
-  const handleLoadJSON = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]; if (!file) return;
-    const reader = new FileReader();
-    reader.onload = ev => {
+  // Importierte Daten aus localStorage laden (z.B. von Dokumenten-Seite)
+  useEffect(() => {
+    const importedData = localStorage.getItem('importedFormData');
+    if (importedData) {
       try {
-        const loaded = JSON.parse(ev.target?.result as string) as FormData;
-        if (!loaded.dokumentTyp || loaded.dokumentTyp !== DOKUMENT_TYP) {
-          toast({ title: t.toastWrongType, variant: 'destructive', duration: 4000 });
-          return;
-        }
-        setForm(loaded);
-        toast({ title: t.toastLoaded, duration: 2000 });
+        const data = JSON.parse(importedData);
+        applyFormData(data);
+        localStorage.removeItem('importedFormData');
       } catch (err) {
-        toast({ title: t.toastInvalid, description: String(err), variant: 'destructive', duration: 3000 });
+        console.error('Fehler beim Laden importierter Daten:', err);
       }
-    };
-    reader.readAsText(file);
-    e.target.value = '';
+    }
+  }, []);
+
+  // Dynamisches marginTop: passt sich an wenn Toolbar durch Wrap höher wird
+  useEffect(() => {
+    const toolbar = document.getElementById('toolbar');
+    const wrapper = document.getElementById('page-wrapper');
+    if (!toolbar || !wrapper) return;
+    const observer = new ResizeObserver(() => {
+      wrapper.style.marginTop = toolbar.offsetHeight + 8 + 'px';
+    });
+    observer.observe(toolbar);
+    return () => observer.disconnect();
+  }, []);
+
+  const showToast = (msg: string, type: 'success' | 'error') => {
+    toast({ description: msg, variant: type === 'error' ? 'destructive' : 'default', duration: 3000 });
   };
 
-  const handleUploadJSON = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { toast({ title: t.toastNotLoggedIn, variant: 'destructive', duration: 3000 }); return; }
-    setIsUploading(true);
+  // ── Field helpers ──────────────────────────────────────────────────────────
+  const setField = <K extends keyof FormData>(key: K, val: FormData[K]) =>
+    setForm(f => ({ ...f, [key]: val }));
+
+  const setZeile = (idx: number, partial: Partial<ZeilenState>) =>
+    setForm(f => { const z = [...f.zeilenState]; z[idx] = { ...z[idx], ...partial }; return { ...f, zeilenState: z }; });
+
+  const setMonteurName = (mi: number, val: string) =>
+    setForm(f => { const m = f.monteure.map((mo, i) => i === mi ? { ...mo, name: val } : mo); return { ...f, monteure: m }; });
+
+  const setMontagTag = (mi: number, ti: number, key: keyof MontagTag, val: string) =>
+    setForm(f => {
+      const m = f.monteure.map((mo, i) => {
+        if (i !== mi) return mo;
+        const tage = mo.tage.map((tag, j) => {
+          if (j !== ti) return tag;
+          const updated = { ...tag, [key]: val };
+          if (key === 'datum' && val) {
+            const dow = new Date(val).getDay();
+            const autoTyp = dow === 6 ? 'samstag' : dow === 0 ? 'sonntag' : '';
+            if (tag.tagTyp !== 'feiertag') {
+              updated.tagTyp = autoTyp as MontagTag['tagTyp'];
+            }
+          }
+          return updated;
+        });
+        return { ...mo, tage };
+      });
+      return { ...f, monteure: m };
+    });
+
+  const addMonteur = () =>
+    setForm(f => ({ ...f, monteure: [...f.monteure, emptyMonteur()] }));
+
+  const removeMonteur = () =>
+    setForm(f => f.monteure.length <= 1 ? f : { ...f, monteure: f.monteure.slice(0, -1) });
+
+  const addTag = (mi: number) =>
+    setForm(f => {
+      const m = f.monteure.map((mo, i) => i === mi ? { ...mo, tage: [...mo.tage, emptyTag()] } : mo);
+      return { ...f, monteure: m };
+    });
+
+  const removeTag = (mi: number, ti: number) =>
+    setForm(f => {
+      const m = f.monteure.map((mo, i) => {
+        if (i !== mi || mo.tage.length <= 1) return mo;
+        return { ...mo, tage: mo.tage.filter((_, j) => j !== ti) };
+      });
+      return { ...f, monteure: m };
+    });
+
+  const setMaterial = (i: number, key: keyof MaterialRow, val: string) =>
+    setForm(f => { const mat = [...f.material]; mat[i] = { ...mat[i], [key]: val }; return { ...f, material: mat }; });
+
+  const setTeil = (i: number, key: keyof TeilRow, val: string) =>
+    setForm(f => { const arr = [...f.teile]; arr[i] = { ...arr[i], [key]: val }; return { ...f, teile: arr }; });
+
+  const addTeil = () =>
+    setForm(f => ({ ...f, teile: [...f.teile, emptyTeil()] }));
+
+  const removeTeil = () =>
+    setForm(f => f.teile.length <= 1 ? f : { ...f, teile: f.teile.slice(0, -1) });
+
+  const setMembran = (i: number, key: keyof MembranRow, val: string) =>
+    setForm(f => { const arr = [...f.membrane]; arr[i] = { ...arr[i], [key]: val }; return { ...f, membrane: arr }; });
+
+  const addMembran = () =>
+    setForm(f => ({ ...f, membrane: [...f.membrane, emptyMembran()] }));
+
+  const removeMembran = () =>
+    setForm(f => f.membrane.length <= 1 ? f : { ...f, membrane: f.membrane.slice(0, -1) });
+
+  // ── File name ──────────────────────────────────────────────────────────────
+  const getFileNameFn = (ext: string) => buildFileName(ext, form.kundenNr);
+
+  // ── JSON I/O ───────────────────────────────────────────────────────────────
+  const collectFormData = () => ({ ...form, dokumentTyp: DOKUMENT_TYP, ts: new Date().toISOString() });
+
+  const applyFormData = (data: FormData) => {
+    if (!data || data.version !== 1) { showToast(t.toastInvalid, 'error'); return; }
+    if (data.dokumentTyp && data.dokumentTyp !== DOKUMENT_TYP) { showToast(t.toastWrongType, 'error'); return; }
+    setForm({ ...data, dokumentTyp: DOKUMENT_TYP });
+    showToast(t.toastLoaded, 'success');
+  };
+
+  // ── Toolbar actions ────────────────────────────────────────────────────────
+  const handleSave = () => {
     try {
-      const payload = collectFormData();
-      const json = JSON.stringify(payload, null, 2);
-      const blob = new Blob([json], { type: 'application/json' });
-      const filename = buildFileName('json', form.protokollNr);
-      const filepath = `${user.id}/${filename}`;
-      const { error: uploadError } = await supabase.storage.from(DOCUMENTS_BUCKET).upload(filepath, blob, { upsert: true });
+      const blob = new Blob([JSON.stringify(collectFormData(), null, 2)], { type: 'application/json' });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a'); a.href = url; a.download = getFileNameFn('json');
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+      showToast(t.toastSaved, 'success');
+    } catch (err: unknown) { showToast(t.toastError + (err as Error).message, 'error'); }
+  };
+
+  const buildDescription = () => {
+    const kopf = form.protokollNr || form.kundenNr || '–';
+    const kunde = form.kunde || '–';
+    const datum = form.wartungDatum || new Date().toISOString().slice(0, 10);
+    return `Wartungsprotokoll Sprühkopf ${kopf} · Kunde ${kunde} · ${datum}`;
+  };
+
+  const handleUploadToStorage = async () => {
+    if (uploading) return;
+    setUploading(true);
+    try {
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      if (userError || !userData?.user) {
+        showToast(t.toastNotLoggedIn, 'error');
+        return;
+      }
+      const user = userData.user;
+
+      const jsonStr  = JSON.stringify(collectFormData(), null, 2);
+      const blob     = new Blob([jsonStr], { type: 'application/json' });
+      const fileName = getFileNameFn('json');
+      const filePath = `${user.id}/${Date.now()}.json`;
+
+      // Hochladen in Storage
+      const { error: uploadError } = await supabase.storage
+        .from(DOCUMENTS_BUCKET)
+        .upload(filePath, blob, { contentType: 'application/json' });
       if (uploadError) throw uploadError;
+
+      // Eintrag in Tabelle
       const { error: insertError } = await supabase.from(DOCUMENTS_TABLE).insert({
         user_id: user.id,
-        file_name: filename,
-        file_path: filepath,
+        file_name: fileName,
+        file_path: filePath,
+        file_size: blob.size,
         file_type: 'application/json',
-        file_size: blob.size
+        description: buildDescription(),
       });
       if (insertError) throw insertError;
-      toast({ title: t.toastUploaded, duration: 2000 });
-    } catch (err) {
-      toast({ title: t.toastUploadError, description: String(err), variant: 'destructive', duration: 3000 });
+
+      showToast(t.toastUploaded, 'success');
+    } catch (err: unknown) {
+      showToast(t.toastUploadError + (err as Error).message, 'error');
     } finally {
-      setIsUploading(false);
+      setUploading(false);
     }
   };
 
-  const handleSavePDF = () => {
+  const handlePdf = () => {
     alert(t.pdfAlert);
+    const restoreList: Array<() => void> = [];
+    document.querySelectorAll<HTMLInputElement>(
+      'input[type="text"], input[type="number"], input[type="time"], input[type="date"], input[type="month"]'
+    ).forEach(el => {
+      const old = el.getAttribute('value');
+      el.setAttribute('value', el.value);
+      restoreList.push(() => { if (old === null) el.removeAttribute('value'); else el.setAttribute('value', old); });
+    });
     window.print();
+    setTimeout(() => restoreList.forEach(fn => fn()), 1000);
   };
 
-  const btnStyle: React.CSSProperties = { background: '#2a7a2a', color: '#fff', border: 'none', borderRadius: 4, padding: '8px 14px', fontSize: 11, cursor: 'pointer', fontFamily: 'Arial', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 6 };
+  const handleLoad = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try { applyFormData(JSON.parse(ev.target?.result as string)); }
+      catch (err: unknown) { showToast(t.toastLoadError + (err as Error).message, 'error'); }
+    };
+    reader.readAsText(file); e.target.value = '';
+  };
 
+  // ── Signature ──────────────────────────────────────────────────────────────
+  const handleSigClose = (id: 'sig-gerlieva' | 'sig-kunde', dataUrl?: string) => {
+    if (dataUrl) setForm(f => ({ ...f, signatures: { ...f.signatures, [id]: dataUrl } }));
+    setSigModal(null);
+  };
+  const clearSig = (id: 'sig-gerlieva' | 'sig-kunde') =>
+    setForm(f => { const s = { ...f.signatures }; delete s[id]; return { ...f, signatures: s }; });
+
+  // ── Computed ───────────────────────────────────────────────────────────────
+  const gesamtAZ        = calcGesamtMinutes(form.monteure);
+  const gesamtBreakdown = calcGesamtBreakdown(form.monteure);
+
+  // ── Styles ─────────────────────────────────────────────────────────────────
+  const cellStyle: React.CSSProperties = { border: '1px solid #000', padding: '1px 3px', verticalAlign: 'top', wordBreak: 'break-word', lineHeight: 1.3, fontSize: 8.5 };
+  const thStyle:   React.CSSProperties = { ...cellStyle, fontWeight: 'bold', textAlign: 'left' };
+  const inp = (extra?: React.CSSProperties): React.CSSProperties => ({
+    border: 'none', outline: 'none', width: '100%',
+    fontFamily: 'Arial, sans-serif', fontSize: 8, background: 'transparent', padding: 0, ...extra,
+  });
+  const tbtn = (bg: string): React.CSSProperties => ({
+    border: 'none', padding: '7px 12px', fontSize: 9, fontWeight: 'bold',
+    borderRadius: 3, cursor: 'pointer', fontFamily: 'Arial, sans-serif', color: '#fff', background: bg,
+    whiteSpace: 'nowrap', flexShrink: 0, minHeight: 32, touchAction: 'manipulation',
+    WebkitTapHighlightColor: 'transparent',
+  });
+
+  // ── Spezialzeilen (Medium-Versorgung, Ausgetauschte Teile, Dichtigkeit) kommen nach alleZeilen ──
+  const S2_OFFSET  = alleZeilen.length;      // Spezial folgen direkt nach alleZeilen
+  const S2_NORMAL  = 0;                       // seite2Zeilen ist leer
+  const innerInp: React.CSSProperties = { border: 'none', outline: 'none', fontFamily: 'Arial', fontSize: 8, background: 'transparent', padding: 0 };
+
+  const renderSpecial = (specialIdx: 0 | 1 | 2, rowIndex: number) => {
+    const bg     = rowIndex % 2 === 0 ? '#fff' : '#f3f3f3';
+    const absIdx = S2_OFFSET + S2_NORMAL + specialIdx;
+    const td: React.CSSProperties = { ...cellStyle, background: bg };
+    const zs = form.zeilenState[absIdx] ?? { ck: 0 as CheckState, name: '', bem: '' };
+
+    const ckCol = <CheckCell state={zs.ck} onChange={ck => setZeile(absIdx, { ck })} />;
+    const nameCol = <td style={td}><input type="text" value={zs.name} onChange={e => setZeile(absIdx, { name: e.target.value })} style={innerInp} /></td>;
+    const bemCol  = <td style={td}><input type="text" value={zs.bem}  onChange={e => setZeile(absIdx, { bem:  e.target.value })} style={innerInp} /></td>;
+
+    // Spezialzeile 0: Medium-Versorgung + Filter
+    if (specialIdx === 0) return (
+      <tr key="sp0">
+        <td style={td}>
+          <table style={{ border: 'none', width: '100%', fontSize: 8, borderCollapse: 'collapse' }}><tbody>
+            <tr>
+              <td colSpan={2} style={{ border: 'none', padding: '1px 4px 2px 0', fontWeight: 'bold' }}>{t.versorgTitle}</td>
+              <td style={{ border: 'none', textAlign: 'center', fontWeight: 'bold' }}>{t.versorgRingleitung}</td>
+              <td style={{ border: 'none', textAlign: 'center', fontWeight: 'bold' }}>{t.versorgDosieranlage}</td>
+              <td style={{ border: 'none', textAlign: 'center', fontWeight: 'bold' }}>{t.versorgUnbekannt}</td>
+            </tr>
+            <tr>
+              <td colSpan={2} style={{ border: 'none', padding: '1px 0 1px 8px' }}></td>
+              <td style={{ border: 'none', textAlign: 'center' }}><Ck2 state={form.versorgung.ringleitung}  onChange={v => setForm(f => ({ ...f, versorgung: { ...f.versorgung, ringleitung: v } }))} /></td>
+              <td style={{ border: 'none', textAlign: 'center' }}><Ck2 state={form.versorgung.dosieranlage} onChange={v => setForm(f => ({ ...f, versorgung: { ...f.versorgung, dosieranlage: v } }))} /></td>
+              <td style={{ border: 'none', textAlign: 'center' }}><Ck2 state={form.versorgung.unbekannt}    onChange={v => setForm(f => ({ ...f, versorgung: { ...f.versorgung, unbekannt: v } }))} /></td>
+            </tr>
+            <tr>
+              <td colSpan={2} style={{ border: 'none', padding: '3px 4px 1px 0', fontWeight: 'bold' }}>{t.filterTitle}</td>
+              <td style={{ border: 'none', textAlign: 'center', fontWeight: 'bold' }}>{t.filterVorhanden}</td>
+              <td style={{ border: 'none', textAlign: 'center', fontWeight: 'bold' }}>{t.filterManuell}</td>
+              <td style={{ border: 'none', textAlign: 'center', fontWeight: 'bold' }}>{t.filterAutomatisch}</td>
+            </tr>
+            <tr>
+              <td colSpan={2} style={{ border: 'none', padding: '1px 0 1px 8px' }}></td>
+              <td style={{ border: 'none', textAlign: 'center' }}><Ck2 state={form.versorgung.filterVorhanden}   onChange={v => setForm(f => ({ ...f, versorgung: { ...f.versorgung, filterVorhanden: v } }))} /></td>
+              <td style={{ border: 'none', textAlign: 'center' }}><Ck2 state={form.versorgung.filterManuell}     onChange={v => setForm(f => ({ ...f, versorgung: { ...f.versorgung, filterManuell: v } }))} /></td>
+              <td style={{ border: 'none', textAlign: 'center' }}><Ck2 state={form.versorgung.filterAutomatisch} onChange={v => setForm(f => ({ ...f, versorgung: { ...f.versorgung, filterAutomatisch: v } }))} /></td>
+            </tr>
+          </tbody></table>
+        </td>
+        {ckCol}{nameCol}{bemCol}
+      </tr>
+    );
+
+    // Spezialzeile 1: Ausgetauschte Teile
+    if (specialIdx === 1) return (
+      <tr key="sp1">
+        <td style={td}>
+          <table style={{ border: 'none', width: '100%', fontSize: 8, borderCollapse: 'collapse' }}><tbody>
+            <tr>
+              <td colSpan={2} style={{ border: 'none', padding: '1px 4px 2px 0', fontWeight: 'bold' }}>{t.tauschTitle}</td>
+              <td style={{ border: 'none', textAlign: 'center', fontWeight: 'bold' }}>{t.tauschGetauscht}</td>
+            </tr>
+            <tr>
+              <td colSpan={2} style={{ border: 'none', padding: '1px 0 1px 8px' }}>{t.tauschMembrane}</td>
+              <td style={{ border: 'none', textAlign: 'center' }}><Ck2 state={form.tausch.membrane} onChange={v => setForm(f => ({ ...f, tausch: { ...f.tausch, membrane: v } }))} /></td>
+            </tr>
+            <tr>
+              <td colSpan={2} style={{ border: 'none', padding: '1px 0 1px 8px' }}>{t.tauschDichtungen}</td>
+              <td style={{ border: 'none', textAlign: 'center' }}><Ck2 state={form.tausch.dichtungen} onChange={v => setForm(f => ({ ...f, tausch: { ...f.tausch, dichtungen: v } }))} /></td>
+            </tr>
+            <tr>
+              <td colSpan={2} style={{ border: 'none', padding: '1px 0 1px 8px' }}>{t.tauschAvs}</td>
+              <td style={{ border: 'none', textAlign: 'center' }}><Ck2 state={form.tausch.avs} onChange={v => setForm(f => ({ ...f, tausch: { ...f.tausch, avs: v } }))} /></td>
+            </tr>
+            <tr>
+              <td colSpan={2} style={{ border: 'none', padding: '1px 0 1px 8px' }}>{t.tauschORinge}</td>
+              <td style={{ border: 'none', textAlign: 'center' }}><Ck2 state={form.tausch.oringe} onChange={v => setForm(f => ({ ...f, tausch: { ...f.tausch, oringe: v } }))} /></td>
+            </tr>
+          </tbody></table>
+        </td>
+        {ckCol}{nameCol}{bemCol}
+      </tr>
+    );
+
+    // Spezialzeile 2: Dichtigkeitsprüfung
+    return (
+      <tr key="sp2">
+        <td style={td}>
+          <table style={{ border: 'none', width: '100%', fontSize: 8, borderCollapse: 'collapse' }}><tbody>
+            <tr>
+              <td style={{ border: 'none', fontWeight: 'bold' }}>{t.dichtTitle}</td>
+              <td style={{ border: 'none', fontWeight: 'bold', textAlign: 'center' }}>{t.dichtDicht}</td>
+              <td style={{ border: 'none', fontWeight: 'bold', textAlign: 'center' }}>{t.dichtBar}</td>
+            </tr>
+            <tr>
+              <td style={{ border: 'none', padding: '1px 0 1px 8px' }}>{t.dichtSteuerluft}</td>
+              <td style={{ border: 'none', textAlign: 'center' }}><Ck2 state={form.dicht.steuerluftAktiv} onChange={v => setForm(f => ({ ...f, dicht: { ...f.dicht, steuerluftAktiv: v } }))} /></td>
+              <td style={{ border: 'none', textAlign: 'center' }}><input type="text" value={form.dicht.steuerluftBar} onChange={e => setForm(f => ({ ...f, dicht: { ...f.dicht, steuerluftBar: e.target.value } }))} style={{ width: 60, border: '1px solid #000', fontSize: 8, textAlign: 'center', padding: 1 }} /></td>
+            </tr>
+            <tr>
+              <td style={{ border: 'none', padding: '1px 0 1px 8px' }}>{t.dichtSpruehluft}</td>
+              <td style={{ border: 'none', textAlign: 'center' }}><Ck2 state={form.dicht.spruehluftAktiv} onChange={v => setForm(f => ({ ...f, dicht: { ...f.dicht, spruehluftAktiv: v } }))} /></td>
+              <td style={{ border: 'none', textAlign: 'center' }}><input type="text" value={form.dicht.spruehluftBar} onChange={e => setForm(f => ({ ...f, dicht: { ...f.dicht, spruehluftBar: e.target.value } }))} style={{ width: 60, border: '1px solid #000', fontSize: 8, textAlign: 'center', padding: 1 }} /></td>
+            </tr>
+          </tbody></table>
+        </td>
+        {ckCol}{nameCol}{bemCol}
+      </tr>
+    );
+  };
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Render
+  // ═══════════════════════════════════════════════════════════════════════════
   return (
     <>
-      <style dangerouslySetInnerHTML={{ __html: printStyles }} />
-      <div className="no-print" style={{ position: 'sticky', top: 0, background: '#1a2744', color: '#fff', padding: '10px 16px', display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', zIndex: 998, boxShadow: '0 2px 6px rgba(0,0,0,0.15)' }}>
-        <a href="/" style={{ ...btnStyle, textDecoration: 'none' }}>{t.home}</a>
-        <span className="toolbar-title" style={{ fontSize: 13, fontWeight: 'bold', flex: 1 }}>{t.toolbarTitle}</span>
-        <button onClick={() => fileInputRef.current?.click()} style={btnStyle}>{t.loadJson}</button>
-        <input ref={fileInputRef} type="file" accept=".json" onChange={handleLoadJSON} style={{ display: 'none' }} />
-        <button onClick={handleSaveJSON} style={btnStyle}>{t.saveJson}</button>
-        <button onClick={handleUploadJSON} disabled={isUploading} style={{ ...btnStyle, opacity: isUploading ? 0.6 : 1 }}>
-          {isUploading ? t.uploadingJson : t.uploadJson}
+      <style>{printStyles}</style>
+
+      {/* ── Toolbar ── */}
+      <div id="toolbar" className="no-print" style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999, background: '#1a2744', padding: '6px 10px', paddingLeft: 'max(10px, env(safe-area-inset-left))', paddingRight: 'max(10px, env(safe-area-inset-right))', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', boxSizing: 'border-box' }}>
+        <button onClick={() => fileInputRef.current?.click()} style={tbtn('#8e24aa')}>{t.loadJson}</button>
+        <button onClick={handlePdf}   style={tbtn('#e8460a')}>{t.savePdf}</button>
+        <button onClick={handleUploadToStorage} disabled={uploading} style={{ ...tbtn('#1a7a3a'), opacity: uploading ? 0.6 : 1, cursor: uploading ? 'default' : 'pointer' }}>
+          {uploading ? t.uploadingJson : t.uploadJson}
         </button>
-        <button onClick={handleSavePDF} style={{ ...btnStyle, background: '#e8460a' }}>{t.savePdf}</button>
-        <LangSwitcher current={lang} onChange={setLang} />
+        <button onClick={handleSave}  style={tbtn('#1a5fa8')}>{t.saveJson}</button>
+        <span className="toolbar-title" style={{ color: '#a8b8d8', fontSize: 9, flexShrink: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{t.toolbarTitle}</span>
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+          <LangSwitcher current={lang} onChange={setLang} />
+          <a href="/" style={{ ...tbtn('#1a5fa8'), textDecoration: 'none' }}>{t.home}</a>
+        </div>
+        <input ref={fileInputRef} type="file" accept=".json,.txt" style={{ display: 'none' }} onChange={handleLoad} />
       </div>
 
-      <div id="page-wrapper" style={{ minHeight: '100vh', background: '#e0e0e0', padding: '16px', display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <div className="a4" style={{ width: '210mm', margin: '0 auto', background: 'white', padding: '10mm 11mm', boxShadow: '0 2px 10px rgba(0,0,0,0.1)', boxSizing: 'border-box', fontFamily: 'Arial, sans-serif', fontSize: 9, lineHeight: 1.4, color: '#000' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+      {/* ── Seiten ── */}
+      <div id="page-wrapper" style={{ marginTop: 56, padding: '8px', paddingLeft: 'max(8px, env(safe-area-inset-left))', paddingRight: 'max(8px, env(safe-area-inset-right))', paddingBottom: 'max(16px, env(safe-area-inset-bottom))', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20, boxSizing: 'border-box', minHeight: '100vh' }}>
+
+        {/* ══════════════ SEITE 1 ══════════════ */}
+        <div className="a4" style={{ width: 'min(210mm, 100%)', background: '#fff', padding: '10mm 11mm', boxShadow: '0 3px 16px rgba(0,0,0,.25)', boxSizing: 'border-box' }}>
+
+          {/* Überschrift */}
+          <h2 style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 8, fontFamily: 'Arial, sans-serif', color: '#000' }}>
+            {t.docTitle}
+          </h2>
+
+          {/* Kopftabelle */}
+          <table style={{ marginBottom: 0, width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+            <colgroup>
+              <col style={{ width: '13%' }} /><col style={{ width: '5%' }} /><col style={{ width: '18%' }} />
+              <col style={{ width: '10%' }} /><col style={{ width: '13%' }} /><col style={{ width: '4%' }} />
+              <col style={{ width: '8%' }} /><col style={{ width: '7%' }} /><col style={{ width: '6%' }} />
+            </colgroup>
             <tbody>
               <tr>
                 <td rowSpan={3} style={{ border: '1px solid #000', verticalAlign: 'middle', textAlign: 'center', padding: 0, overflow: 'hidden' }}>
-                  {/* Logo entfernt */}
+                  <img src={LOGO_SRC} alt="Logo" style={{ height: 36, display: 'block', margin: '0 auto' }} />
                 </td>
                 <td colSpan={6} style={{ border: '1px solid #000', padding: 1 }}></td>
+                <th colSpan={2} style={{ border: '1px solid #000', textAlign: 'right', fontWeight: 'bold', fontSize: 11 }}>{t.labelWartung}</th>
               </tr>
-              <tr>
-                <td colSpan={6} style={{ border: '1px solid #000', fontWeight: 'bold', fontSize: 13, textAlign: 'center', letterSpacing: '.5px', padding: 2 }}>
-                  {t.docTitle}
-                </td>
+              <tr style={{ height: 18 }}>
+                <th style={thStyle}>{t.labelKunde}</th>
+                <td style={cellStyle}><input type="text" value={form.kunde}    onChange={e => setField('kunde', e.target.value)}    style={inp({ height: 16 })} /></td>
+                <th style={thStyle}>{t.labelKundenNr}</th>
+                <td style={cellStyle}><input type="text" value={form.kundenNr} onChange={e => setField('kundenNr', e.target.value)} style={inp({ height: 16 })} maxLength={12} /></td>
+                <th style={thStyle}>{t.labelDgm}</th>
+                <td style={cellStyle}><input type="text" value={form.dgm}      onChange={e => setField('dgm', e.target.value)}      style={inp({ height: 16 })} /></td>
+                <th style={thStyle}>{t.labelProtokollNr}</th>
+                <td style={{ ...cellStyle, width: 55 }}><input type="text" value={form.protokollNr} onChange={e => setField('protokollNr', e.target.value)} style={inp({ width: 52, height: 16 })} maxLength={8} /></td>
               </tr>
-              <tr>
-                <td style={{ border: '1px solid #000', fontSize: 7.5, fontWeight: 'bold', padding: '1px 3px', width: '15%' }}>{t.labelKunde}</td>
-                <td style={{ border: '1px solid #000', padding: '1px 3px', width: '25%' }}>
-                  <input type="text" value={form.kunde} onChange={e => u({ kunde: e.target.value })} style={{ border: 'none', outline: 'none', width: '100%', fontSize: 8, fontFamily: 'Arial', background: 'transparent' }} />
-                </td>
-                <td style={{ border: '1px solid #000', fontSize: 7.5, fontWeight: 'bold', padding: '1px 3px', width: '15%' }}>{t.labelKundenNr}</td>
-                <td style={{ border: '1px solid #000', padding: '1px 3px', width: '15%' }}>
-                  <input type="text" value={form.kundenNr} onChange={e => u({ kundenNr: e.target.value })} style={{ border: 'none', outline: 'none', width: '100%', fontSize: 8, fontFamily: 'Arial', background: 'transparent' }} />
-                </td>
-                <td style={{ border: '1px solid #000', fontSize: 7.5, fontWeight: 'bold', padding: '1px 3px', width: '10%' }}>{t.labelDgm}</td>
-                <td style={{ border: '1px solid #000', padding: '1px 3px', width: '20%' }}>
-                  <input type="text" value={form.dgm} onChange={e => u({ dgm: e.target.value })} style={{ border: 'none', outline: 'none', width: '100%', fontSize: 8, fontFamily: 'Arial', background: 'transparent' }} />
-                </td>
-              </tr>
-              <tr>
-                <td style={{ border: '1px solid #000', fontSize: 7.5, fontWeight: 'bold', padding: '1px 3px' }}>{t.labelProtokollNr}</td>
-                <td style={{ border: '1px solid #000', padding: '1px 3px' }}>
-                  <input type="text" value={form.protokollNr} onChange={e => u({ protokollNr: e.target.value })} style={{ border: 'none', outline: 'none', width: '100%', fontSize: 8, fontFamily: 'Arial', background: 'transparent' }} />
-                </td>
-                <td style={{ border: '1px solid #000', fontSize: 7.5, fontWeight: 'bold', padding: '1px 3px' }}>{t.labelArtikelNr}</td>
-                <td style={{ border: '1px solid #000', padding: '1px 3px' }}>
-                  <input type="text" value={form.artikelNr} onChange={e => u({ artikelNr: e.target.value })} style={{ border: 'none', outline: 'none', width: '100%', fontSize: 8, fontFamily: 'Arial', background: 'transparent' }} />
-                </td>
-                <td style={{ border: '1px solid #000', fontSize: 7.5, fontWeight: 'bold', padding: '1px 3px' }}>{t.labelRegNr}</td>
-                <td style={{ border: '1px solid #000', padding: '1px 3px' }}>
-                  <input type="text" value={form.regNr} onChange={e => u({ regNr: e.target.value })} style={{ border: 'none', outline: 'none', width: '100%', fontSize: 8, fontFamily: 'Arial', background: 'transparent' }} />
-                </td>
-                <td style={{ border: '1px solid #000', fontSize: 7.5, fontWeight: 'bold', padding: '1px 3px' }}>{t.labelKom}</td>
-                <td style={{ border: '1px solid #000', padding: '1px 3px' }}>
-                  <input type="text" value={form.kom} onChange={e => u({ kom: e.target.value })} style={{ border: 'none', outline: 'none', width: '100%', fontSize: 8, fontFamily: 'Arial', background: 'transparent' }} />
-                </td>
-              </tr>
-              <tr>
-                <td colSpan={2} style={{ border: '1px solid #000', fontSize: 7.5, fontWeight: 'bold', padding: '1px 3px' }}>{t.labelWartungDatumHead}</td>
-                <td colSpan={5} style={{ border: '1px solid #000', padding: '1px 3px' }}>
-                  <input type="date" value={form.wartungDatum} onChange={e => u({ wartungDatum: e.target.value })} style={{ border: 'none', outline: 'none', width: '100%', fontSize: 8, fontFamily: 'Arial', background: 'transparent' }} />
+              <tr style={{ height: 18 }}>
+                <th style={thStyle}>{t.labelArtikelNr}</th>
+                <td style={cellStyle}><input type="text" value={form.artikelNr} onChange={e => setField('artikelNr', e.target.value)} style={inp({ height: 16 })} /></td>
+                <th style={thStyle}>{t.labelRegNr}</th>
+                <td style={cellStyle}><input type="text" value={form.regNr}     onChange={e => setField('regNr', e.target.value)}     style={inp({ height: 16 })} maxLength={12} /></td>
+                <th style={thStyle}>{t.labelKom}</th>
+                <td style={cellStyle}><input type="text" value={form.kom}       onChange={e => setField('kom', e.target.value)}       style={inp({ height: 16 })} /></td>
+                <th style={thStyle}>{t.labelWartungDatumHead}</th>
+                <td style={{ ...cellStyle, width: 72 }}>
+                  <input type="date" value={form.wartungDatum} onChange={e => setField('wartungDatum', e.target.value)}
+                    style={{ border: 'none', outline: 'none', fontFamily: 'Arial', fontSize: 7.5, background: 'transparent', color: '#000', colorScheme: 'light', padding: 0, width: 70, height: 16, cursor: 'pointer' }} />
                 </td>
               </tr>
             </tbody>
           </table>
 
-          <div style={{ marginTop: 6 }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
-              <thead>
-                <tr>
-                  <th style={{ border: '1px solid #000', background: '#cfdff5', fontWeight: 'bold', fontSize: 8, padding: '2px 3px', width: '50%' }}>{t.colPruefpunkt}</th>
-                  <th style={{ border: '1px solid #000', background: '#cfdff5', fontWeight: 'bold', fontSize: 8, padding: '2px 3px', width: '8%' }}>{t.colOk}</th>
-                  <th style={{ border: '1px solid #000', background: '#cfdff5', fontWeight: 'bold', fontSize: 8, padding: '2px 3px', width: '12%' }}>{t.colName}</th>
-                  <th style={{ border: '1px solid #000', background: '#cfdff5', fontWeight: 'bold', fontSize: 8, padding: '2px 3px', width: '30%' }}>{t.colBemerkung}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {/* Spezialzeile 0: Medium-Versorgung / Filter */}
-                <tr>
-                  <td colSpan={4} style={{ border: '1px solid #000', padding: '2px 3px', fontSize: 8.5 }}>
-                    <strong>{t.versorgTitle}</strong> {' '}
-                    <Ck2 state={form.versorgung.ringleitung} onChange={v => u({ versorgung: { ...form.versorgung, ringleitung: v } })} /> {t.versorgRingleitung}
-                    {' '}<Ck2 state={form.versorgung.dosieranlage} onChange={v => u({ versorgung: { ...form.versorgung, dosieranlage: v } })} /> {t.versorgDosieranlage}
-                    {' '}<Ck2 state={form.versorgung.unbekannt} onChange={v => u({ versorgung: { ...form.versorgung, unbekannt: v } })} /> {t.versorgUnbekannt}
-                    <br/>
-                    <strong>{t.filterTitle}</strong> {' '}
-                    <Ck2 state={form.versorgung.filterVorhanden} onChange={v => u({ versorgung: { ...form.versorgung, filterVorhanden: v } })} /> {t.filterVorhanden}
-                    {' '}<Ck2 state={form.versorgung.filterManuell} onChange={v => u({ versorgung: { ...form.versorgung, filterManuell: v } })} /> {t.filterManuell}
-                    {' '}<Ck2 state={form.versorgung.filterAutomatisch} onChange={v => u({ versorgung: { ...form.versorgung, filterAutomatisch: v } })} /> {t.filterAutomatisch}
-                  </td>
-                </tr>
-                {/* Spezialzeile 1: Ausgetauschte Teile */}
-                <tr>
-                  <td colSpan={4} style={{ border: '1px solid #000', padding: '2px 3px', fontSize: 8.5 }}>
-                    <strong>{t.tauschTitle}</strong> {' '}
-                    <Ck2 state={form.tausch.membrane} onChange={v => u({ tausch: { ...form.tausch, membrane: v } })} /> {t.tauschMembrane}
-                    {' '}<Ck2 state={form.tausch.dichtungen} onChange={v => u({ tausch: { ...form.tausch, dichtungen: v } })} /> {t.tauschDichtungen}
-                    {' '}<Ck2 state={form.tausch.avs} onChange={v => u({ tausch: { ...form.tausch, avs: v } })} /> {t.tauschAvs}
-                    {' '}<Ck2 state={form.tausch.oringe} onChange={v => u({ tausch: { ...form.tausch, oringe: v } })} /> {t.tauschORinge}
-                  </td>
-                </tr>
-                {/* Spezialzeile 2: Dichtigkeitsprüfung */}
-                <tr>
-                  <td colSpan={4} style={{ border: '1px solid #000', padding: '2px 3px', fontSize: 8.5 }}>
-                    <strong>{t.dichtTitle}</strong> {' '}
-                    <Ck2 state={form.dicht.steuerluftAktiv} onChange={v => u({ dicht: { ...form.dicht, steuerluftAktiv: v } })} /> {t.dichtSteuerluft} {' '}
-                    <input type="number" step="0.1" value={form.dicht.steuerluftBar} onChange={e => u({ dicht: { ...form.dicht, steuerluftBar: e.target.value } })}
-                      style={{ border: '1px solid #bbb', borderRadius: 2, outline: 'none', width: 60, fontSize: 8, fontFamily: 'Arial', padding: '1px 3px', background: 'transparent' }} /> {t.dichtBar}
-                    {' '}<Ck2 state={form.dicht.spruehluftAktiv} onChange={v => u({ dicht: { ...form.dicht, spruehluftAktiv: v } })} /> {t.dichtSpruehluft} {' '}
-                    <input type="number" step="0.1" value={form.dicht.spruehluftBar} onChange={e => u({ dicht: { ...form.dicht, spruehluftBar: e.target.value } })}
-                      style={{ border: '1px solid #bbb', borderRadius: 2, outline: 'none', width: 60, fontSize: 8, fontFamily: 'Arial', padding: '1px 3px', background: 'transparent' }} /> {t.dichtBar}
-                  </td>
-                </tr>
-                {alleZeilen.map((zeile, idx) => (
-                  <PruefZeile key={idx} zeile={zeile} state={form.zeilenState[idx + 3]} onChange={ch => uZeile(idx + 3, ch)} rowIndex={idx} t={t} />
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* SEITE 2 */}
-          <div style={{ pageBreakBefore: 'always', marginTop: 8 }}>
-            <div style={{ fontWeight: 'bold', fontSize: 9, padding: '3px 0', borderBottom: '2px solid #1a2744', marginBottom: 4 }}>{t.labelWartung}</div>
-            <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 6 }}>
-              <thead>
-                <tr>
-                  <th style={{ border: '1px solid #000', background: '#cfdff5', fontWeight: 'bold', fontSize: 8, padding: '2px 3px', textAlign: 'center' }}>{t.thDatum}</th>
-                  <th style={{ border: '1px solid #000', background: '#cfdff5', fontWeight: 'bold', fontSize: 8, padding: '2px 3px', textAlign: 'center' }}>{t.thTechniker}</th>
-                  <th style={{ border: '1px solid #000', background: '#cfdff5', fontWeight: 'bold', fontSize: 8, padding: '2px 3px', textAlign: 'center' }}>{t.thAzVon}</th>
-                  <th style={{ border: '1px solid #000', background: '#cfdff5', fontWeight: 'bold', fontSize: 8, padding: '2px 3px', textAlign: 'center' }}>{t.thAzBis}</th>
-                  <th style={{ border: '1px solid #000', background: '#cfdff5', fontWeight: 'bold', fontSize: 8, padding: '2px 3px', textAlign: 'center' }}>{t.thPause}</th>
-                  <th style={{ border: '1px solid #000', background: '#cfdff5', fontWeight: 'bold', fontSize: 8, padding: '2px 3px', textAlign: 'center' }}>{t.thTagTyp}</th>
-                  <th className="no-print" style={{ border: '1px solid #000', background: '#cfdff5', fontWeight: 'bold', fontSize: 8, padding: '2px 3px', textAlign: 'center', width: 30 }}></th>
-                </tr>
-              </thead>
-              <tbody>
-                {form.monteure.map((m, mIdx) => (
-                  <React.Fragment key={mIdx}>
-                    {m.tage.map((tag, tIdx) => (
-                      <tr key={`${mIdx}-${tIdx}`}>
-                        <td style={{ border: '1px solid #000', padding: '1px 3px', textAlign: 'center' }}>
-                          <input type="date" value={tag.datum} onChange={e => uTag(mIdx, tIdx, { datum: e.target.value })}
-                            style={{ border: 'none', outline: 'none', width: '100%', fontSize: 7.5, fontFamily: 'Arial', textAlign: 'center', background: 'transparent' }} />
+          {/* Teilenummern und Registriernummern */}
+          <div style={{ marginTop: 6, marginBottom: 6, border: '1px solid #000', padding: 6 }}>
+            <strong style={{ fontSize: 8.5, letterSpacing: '.03em' }}>{t.sectionTeile}</strong>
+            <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 4 }}>
+                <thead>
+                  <tr>
+                    <th style={{ border: '1px solid #000', padding: '2px 4px', textAlign: 'center', background: '#e0e0e0', fontWeight: 'bold', fontSize: 8, width: 32 }}>{t.thPos}</th>
+                    <th style={{ border: '1px solid #000', padding: '2px 4px', textAlign: 'center', background: '#e0e0e0', fontWeight: 'bold', fontSize: 8 }}>{t.thBezeichnung}</th>
+                    <th style={{ border: '1px solid #000', padding: '2px 4px', textAlign: 'center', background: '#e0e0e0', fontWeight: 'bold', fontSize: 8, width: 110 }}>{t.thTeilenummer}</th>
+                    <th style={{ border: '1px solid #000', padding: '2px 4px', textAlign: 'center', background: '#e0e0e0', fontWeight: 'bold', fontSize: 8, width: 110 }}>{t.thRegNr}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {form.teile.map((row, i) => (
+                    <tr key={i} style={{ background: i % 2 === 0 ? '#fff' : '#f3f3f3' }}>
+                      {(['pos', 'bezeichnung', 'teilenummer', 'registriernummer'] as (keyof TeilRow)[]).map(f => (
+                        <td key={f} style={{ border: '1px solid #000', padding: '1px 3px', fontSize: 8 }}>
+                          <input type="text" value={row[f]} onChange={e => setTeil(i, f, e.target.value)}
+                            placeholder={f === 'bezeichnung' && i === 0 ? 'Mittelteil' : ''}
+                            style={{ width: '100%', border: 'none', outline: 'none', padding: 1, background: 'transparent', color: '#000', fontSize: 8, fontFamily: 'Arial' }} />
                         </td>
-                        <td style={{ border: '1px solid #000', padding: '1px 3px', textAlign: 'center' }}>
-                          <input type="text" value={m.name} onChange={e => uMonteur(mIdx, { name: e.target.value })}
-                            style={{ border: 'none', outline: 'none', width: '100%', fontSize: 7.5, fontFamily: 'Arial', textAlign: 'center', background: 'transparent' }} />
-                        </td>
-                        <td style={{ border: '1px solid #000', padding: '1px 3px', textAlign: 'center' }}>
-                          <input type="time" value={tag.vonZeit} onChange={e => uTag(mIdx, tIdx, { vonZeit: e.target.value })}
-                            style={{ border: 'none', outline: 'none', width: '100%', fontSize: 7.5, fontFamily: 'Arial', textAlign: 'center', background: 'transparent' }} />
-                        </td>
-                        <td style={{ border: '1px solid #000', padding: '1px 3px', textAlign: 'center' }}>
-                          <input type="time" value={tag.bisZeit} onChange={e => uTag(mIdx, tIdx, { bisZeit: e.target.value })}
-                            style={{ border: 'none', outline: 'none', width: '100%', fontSize: 7.5, fontFamily: 'Arial', textAlign: 'center', background: 'transparent' }} />
-                        </td>
-                        <td style={{ border: '1px solid #000', padding: '1px 3px', textAlign: 'center' }}>
-                          <input type="number" min="0" step="1" value={tag.pauseMin} onChange={e => uTag(mIdx, tIdx, { pauseMin: e.target.value })}
-                            style={{ border: 'none', outline: 'none', width: '100%', fontSize: 7.5, fontFamily: 'Arial', textAlign: 'center', background: 'transparent' }} />
-                        </td>
-                        <td style={{ border: '1px solid #000', padding: '1px 3px', textAlign: 'center' }}>
-                          <select value={tag.tagTyp} onChange={e => uTag(mIdx, tIdx, { tagTyp: e.target.value as any })}
-                            style={{ border: 'none', outline: 'none', width: '100%', fontSize: 7.5, fontFamily: 'Arial', textAlign: 'center', background: 'transparent', color: '#000', colorScheme: 'light' }}>
-                            <option value="">{t.tagTypNormal}</option>
-                            <option value="feiertag">{t.tagTypFeiertag}</option>
-                            <option value="samstag">{t.tagTypSamstag}</option>
-                            <option value="sonntag">{t.tagTypSonntag}</option>
-                          </select>
-                        </td>
-                        <td className="no-print" style={{ border: '1px solid #000', padding: '1px 3px', textAlign: 'center' }}>
-                          <button onClick={() => { const arr = [...form.monteure]; arr[mIdx].tage = arr[mIdx].tage.filter((_, i) => i !== tIdx); u({ monteure: arr }); }}
-                            style={{ background: '#d9534f', color: '#fff', border: 'none', borderRadius: 3, fontSize: 8, padding: '2px 4px', cursor: 'pointer' }}>
-                            {t.btnTagEntf}
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                    <tr className="no-print">
-                      <td colSpan={7} style={{ border: 'none', textAlign: 'left', padding: '2px 3px' }}>
-                        <button onClick={() => { const arr = [...form.monteure]; arr[mIdx].tage.push(emptyTag()); u({ monteure: arr }); }}
-                          style={{ background: '#5cb85c', color: '#fff', border: 'none', borderRadius: 3, fontSize: 8, padding: '3px 6px', cursor: 'pointer', marginRight: 4 }}>
-                          {t.btnTagHinzu}
-                        </button>
-                        {form.monteure.length > 1 && (
-                          <button onClick={() => u({ monteure: form.monteure.filter((_, i) => i !== mIdx) })}
-                            style={{ background: '#d9534f', color: '#fff', border: 'none', borderRadius: 3, fontSize: 8, padding: '3px 6px', cursor: 'pointer' }}>
-                            {t.btnMonteurEntf}
-                          </button>
-                        )}
-                      </td>
+                      ))}
                     </tr>
-                  </React.Fragment>
-                ))}
-                <tr className="no-print">
-                  <td colSpan={7} style={{ border: 'none', textAlign: 'left', padding: '2px 3px' }}>
-                    <button onClick={() => u({ monteure: [...form.monteure, emptyMonteur()] })}
-                      style={{ background: '#0275d8', color: '#fff', border: 'none', borderRadius: 3, fontSize: 8, padding: '3px 6px', cursor: 'pointer' }}>
-                      {t.btnMonteurHinzu}
-                    </button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-
-            <div style={{ fontSize: 8, fontWeight: 'bold', marginBottom: 2 }}>{t.labelGesamtAZ} {calcGesamtMinutes(form.monteure)}</div>
-
-            <div style={{ fontWeight: 'bold', fontSize: 9, padding: '3px 0', borderBottom: '2px solid #1a2744', marginTop: 6, marginBottom: 4 }}>{t.sectionMaterial}</div>
-            <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 6 }}>
-              <thead>
-                <tr>
-                  <th style={{ border: '1px solid #000', background: '#cfdff5', fontWeight: 'bold', fontSize: 8, padding: '2px 3px', width: '8%' }}>{t.thPos}</th>
-                  <th style={{ border: '1px solid #000', background: '#cfdff5', fontWeight: 'bold', fontSize: 8, padding: '2px 3px', width: '52%' }}>{t.thBeschreibung}</th>
-                  <th style={{ border: '1px solid #000', background: '#cfdff5', fontWeight: 'bold', fontSize: 8, padding: '2px 3px', width: '30%' }}>{t.thTeilenummer}</th>
-                  <th style={{ border: '1px solid #000', background: '#cfdff5', fontWeight: 'bold', fontSize: 8, padding: '2px 3px', width: '10%' }}>{t.thStk}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {form.material.map((r, idx) => (
-                  <tr key={idx}>
-                    <td style={{ border: '1px solid #000', padding: '1px 3px', textAlign: 'center' }}>
-                      <input type="text" value={r.pos} onChange={e => uMat(idx, { pos: e.target.value })}
-                        style={{ border: 'none', outline: 'none', width: '100%', fontSize: 7.5, fontFamily: 'Arial', textAlign: 'center', background: 'transparent' }} />
-                    </td>
-                    <td style={{ border: '1px solid #000', padding: '1px 3px' }}>
-                      <input type="text" value={r.beschreibung} onChange={e => uMat(idx, { beschreibung: e.target.value })}
-                        style={{ border: 'none', outline: 'none', width: '100%', fontSize: 7.5, fontFamily: 'Arial', background: 'transparent' }} />
-                    </td>
-                    <td style={{ border: '1px solid #000', padding: '1px 3px' }}>
-                      <input type="text" value={r.teilenummer} onChange={e => uMat(idx, { teilenummer: e.target.value })}
-                        style={{ border: 'none', outline: 'none', width: '100%', fontSize: 7.5, fontFamily: 'Arial', background: 'transparent' }} />
-                    </td>
-                    <td style={{ border: '1px solid #000', padding: '1px 3px', textAlign: 'center' }}>
-                      <input type="text" value={r.stk} onChange={e => uMat(idx, { stk: e.target.value })}
-                        style={{ border: 'none', outline: 'none', width: '100%', fontSize: 7.5, fontFamily: 'Arial', textAlign: 'center', background: 'transparent' }} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-
-            <div style={{ fontWeight: 'bold', fontSize: 9, padding: '3px 0', borderBottom: '2px solid #1a2744', marginTop: 6, marginBottom: 4 }}>{t.sectionTeile}</div>
-            <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 6 }}>
-              <thead>
-                <tr>
-                  <th style={{ border: '1px solid #000', background: '#cfdff5', fontWeight: 'bold', fontSize: 8, padding: '2px 3px', width: '8%' }}>{t.thPos}</th>
-                  <th style={{ border: '1px solid #000', background: '#cfdff5', fontWeight: 'bold', fontSize: 8, padding: '2px 3px', width: '42%' }}>{t.thBezeichnung}</th>
-                  <th style={{ border: '1px solid #000', background: '#cfdff5', fontWeight: 'bold', fontSize: 8, padding: '2px 3px', width: '30%' }}>{t.thTeilenummer}</th>
-                  <th style={{ border: '1px solid #000', background: '#cfdff5', fontWeight: 'bold', fontSize: 8, padding: '2px 3px', width: '20%' }}>{t.thRegNr}</th>
-                  <th className="no-print" style={{ border: '1px solid #000', background: '#cfdff5', fontWeight: 'bold', fontSize: 8, padding: '2px 3px', width: 30 }}></th>
-                </tr>
-              </thead>
-              <tbody>
-                {form.teile.map((r, idx) => (
-                  <tr key={idx}>
-                    <td style={{ border: '1px solid #000', padding: '1px 3px', textAlign: 'center' }}>
-                      <input type="text" value={r.pos} onChange={e => uTeil(idx, { pos: e.target.value })}
-                        style={{ border: 'none', outline: 'none', width: '100%', fontSize: 7.5, fontFamily: 'Arial', textAlign: 'center', background: 'transparent' }} />
-                    </td>
-                    <td style={{ border: '1px solid #000', padding: '1px 3px' }}>
-                      <input type="text" value={r.bezeichnung} onChange={e => uTeil(idx, { bezeichnung: e.target.value })}
-                        style={{ border: 'none', outline: 'none', width: '100%', fontSize: 7.5, fontFamily: 'Arial', background: 'transparent' }} />
-                    </td>
-                    <td style={{ border: '1px solid #000', padding: '1px 3px' }}>
-                      <input type="text" value={r.teilenummer} onChange={e => uTeil(idx, { teilenummer: e.target.value })}
-                        style={{ border: 'none', outline: 'none', width: '100%', fontSize: 7.5, fontFamily: 'Arial', background: 'transparent' }} />
-                    </td>
-                    <td style={{ border: '1px solid #000', padding: '1px 3px' }}>
-                      <input type="text" value={r.registriernummer} onChange={e => uTeil(idx, { registriernummer: e.target.value })}
-                        style={{ border: 'none', outline: 'none', width: '100%', fontSize: 7.5, fontFamily: 'Arial', background: 'transparent' }} />
-                    </td>
-                    <td className="no-print" style={{ border: '1px solid #000', padding: '1px 3px', textAlign: 'center' }}>
-                      <button onClick={() => u({ teile: form.teile.filter((_, i) => i !== idx) })}
-                        style={{ background: '#d9534f', color: '#fff', border: 'none', borderRadius: 3, fontSize: 8, padding: '2px 4px', cursor: 'pointer' }}>
-                        {t.btnZeileEntf}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-                <tr className="no-print">
-                  <td colSpan={5} style={{ border: 'none', textAlign: 'left', padding: '2px 3px' }}>
-                    <button onClick={() => u({ teile: [...form.teile, emptyTeil()] })}
-                      style={{ background: '#5cb85c', color: '#fff', border: 'none', borderRadius: 3, fontSize: 8, padding: '3px 6px', cursor: 'pointer' }}>
-                      {t.btnZeileHinzu}
-                    </button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-
-            <div style={{ fontWeight: 'bold', fontSize: 9, padding: '3px 0', borderBottom: '2px solid #1a2744', marginTop: 6, marginBottom: 4 }}>{t.sectionMembrane}</div>
-            <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 6 }}>
-              <thead>
-                <tr>
-                  <th style={{ border: '1px solid #000', background: '#cfdff5', fontWeight: 'bold', fontSize: 8, padding: '2px 3px', width: '8%' }}>{t.thPos}</th>
-                  <th style={{ border: '1px solid #000', background: '#cfdff5', fontWeight: 'bold', fontSize: 8, padding: '2px 3px', width: '10%' }}>{t.thStk}</th>
-                  <th style={{ border: '1px solid #000', background: '#cfdff5', fontWeight: 'bold', fontSize: 8, padding: '2px 3px', width: '52%' }}>{t.thBezeichnung}</th>
-                  <th style={{ border: '1px solid #000', background: '#cfdff5', fontWeight: 'bold', fontSize: 8, padding: '2px 3px', width: '30%' }}>{t.thTeilenummer}</th>
-                  <th className="no-print" style={{ border: '1px solid #000', background: '#cfdff5', fontWeight: 'bold', fontSize: 8, padding: '2px 3px', width: 30 }}></th>
-                </tr>
-              </thead>
-              <tbody>
-                {form.membrane.map((r, idx) => (
-                  <tr key={idx}>
-                    <td style={{ border: '1px solid #000', padding: '1px 3px', textAlign: 'center' }}>
-                      <input type="text" value={r.pos} onChange={e => uMembran(idx, { pos: e.target.value })}
-                        style={{ border: 'none', outline: 'none', width: '100%', fontSize: 7.5, fontFamily: 'Arial', textAlign: 'center', background: 'transparent' }} />
-                    </td>
-                    <td style={{ border: '1px solid #000', padding: '1px 3px', textAlign: 'center' }}>
-                      <input type="text" value={r.stk} onChange={e => uMembran(idx, { stk: e.target.value })}
-                        style={{ border: 'none', outline: 'none', width: '100%', fontSize: 7.5, fontFamily: 'Arial', textAlign: 'center', background: 'transparent' }} />
-                    </td>
-                    <td style={{ border: '1px solid #000', padding: '1px 3px' }}>
-                      <input type="text" value={r.bezeichnung} onChange={e => uMembran(idx, { bezeichnung: e.target.value })}
-                        style={{ border: 'none', outline: 'none', width: '100%', fontSize: 7.5, fontFamily: 'Arial', background: 'transparent' }} />
-                    </td>
-                    <td style={{ border: '1px solid #000', padding: '1px 3px' }}>
-                      <input type="text" value={r.teilenummer} onChange={e => uMembran(idx, { teilenummer: e.target.value })}
-                        style={{ border: 'none', outline: 'none', width: '100%', fontSize: 7.5, fontFamily: 'Arial', background: 'transparent' }} />
-                    </td>
-                    <td className="no-print" style={{ border: '1px solid #000', padding: '1px 3px', textAlign: 'center' }}>
-                      <button onClick={() => u({ membrane: form.membrane.filter((_, i) => i !== idx) })}
-                        style={{ background: '#d9534f', color: '#fff', border: 'none', borderRadius: 3, fontSize: 8, padding: '2px 4px', cursor: 'pointer' }}>
-                        {t.btnZeileEntf}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-                <tr className="no-print">
-                  <td colSpan={5} style={{ border: 'none', textAlign: 'left', padding: '2px 3px' }}>
-                    <button onClick={() => u({ membrane: [...form.membrane, emptyMembran()] })}
-                      style={{ background: '#5cb85c', color: '#fff', border: 'none', borderRadius: 3, fontSize: 8, padding: '3px 6px', cursor: 'pointer' }}>
-                      {t.btnZeileHinzu}
-                    </button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-
-            <div style={{ fontWeight: 'bold', fontSize: 9, padding: '3px 0', borderBottom: '2px solid #1a2744', marginTop: 10, marginBottom: 4 }}>{t.sectionSign}</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 4 }}>
-              <div>
-                <div style={{ fontSize: 8, fontWeight: 'bold', marginBottom: 2 }}>{t.sectionGerlieva}</div>
-                <div style={{ fontSize: 7.5, marginBottom: 2 }}>{t.labelDatum}: <input type="date" value={form.signatureDate} onChange={e => u({ signatureDate: e.target.value })} style={{ border: 'none', borderBottom: '1px solid #bbb', outline: 'none', fontSize: 7.5, fontFamily: 'Arial', background: 'transparent' }} /></div>
-                <div style={{ fontSize: 7.5, marginBottom: 2 }}>{t.sigPlaceholderTech}: <input type="text" value={form.nameGerlieva} onChange={e => u({ nameGerlieva: e.target.value })} style={{ border: 'none', borderBottom: '1px solid #bbb', outline: 'none', fontSize: 7.5, fontFamily: 'Arial', width: '60%', background: 'transparent' }} /></div>
-                <div style={{ fontSize: 7.5, marginBottom: 2 }}>{t.sigGerlieva}:</div>
-                <SigPreview dataUrl={form.signatures['sig-gerlieva']} onClick={() => setSigModal({ key: 'sig-gerlieva', label: t.sigGerlieva })} tapLabel={t.sigTap} />
-              </div>
-              <div>
-                <div style={{ fontSize: 8, fontWeight: 'bold', marginBottom: 2 }}>{t.labelKunde}</div>
-                <div style={{ fontSize: 7.5, marginBottom: 2 }}>&nbsp;</div>
-                <div style={{ fontSize: 7.5, marginBottom: 2 }}>{t.sigPlaceholderKunde}: <input type="text" value={form.nameKunde} onChange={e => u({ nameKunde: e.target.value })} style={{ border: 'none', borderBottom: '1px solid #bbb', outline: 'none', fontSize: 7.5, fontFamily: 'Arial', width: '60%', background: 'transparent' }} /></div>
-                <div style={{ fontSize: 7.5, marginBottom: 2 }}>{t.sigKunde}:</div>
-                <SigPreview dataUrl={form.signatures['sig-kunde']} onClick={() => setSigModal({ key: 'sig-kunde', label: t.sigKunde })} tapLabel={t.sigTap} />
-              </div>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="no-print" style={{ marginTop: 4, display: 'flex', gap: 4 }}>
+              <button onClick={addTeil}
+                style={{ fontSize: 8, padding: '2px 10px', background: '#e8f0ff', border: '1px solid #99b', borderRadius: 3, cursor: 'pointer', fontFamily: 'Arial' }}>
+                {t.btnZeileHinzu}
+              </button>
+              <button onClick={removeTeil}
+                disabled={form.teile.length <= 1}
+                style={{ fontSize: 8, padding: '2px 10px', background: form.teile.length > 1 ? '#fdd' : '#eee', border: '1px solid #bbb', borderRadius: 3, cursor: form.teile.length > 1 ? 'pointer' : 'default', color: form.teile.length > 1 ? '#900' : '#999', fontFamily: 'Arial' }}>
+                {t.btnZeileEntf}
+              </button>
             </div>
           </div>
+
+          {/* Membrane und Flachdichtungen */}
+          <div style={{ marginTop: 6, marginBottom: 6, border: '1px solid #000', padding: 6 }}>
+            <strong style={{ fontSize: 8.5, letterSpacing: '.03em' }}>{t.sectionMembrane}</strong>
+            <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 4 }}>
+                <thead>
+                  <tr>
+                    <th style={{ border: '1px solid #000', padding: '2px 4px', textAlign: 'center', background: '#e0e0e0', fontWeight: 'bold', fontSize: 8, width: 32 }}>{t.thPos}</th>
+                    <th style={{ border: '1px solid #000', padding: '2px 4px', textAlign: 'center', background: '#e0e0e0', fontWeight: 'bold', fontSize: 8, width: 44 }}>{t.thStk}</th>
+                    <th style={{ border: '1px solid #000', padding: '2px 4px', textAlign: 'center', background: '#e0e0e0', fontWeight: 'bold', fontSize: 8 }}>{t.thBezeichnung}</th>
+                    <th style={{ border: '1px solid #000', padding: '2px 4px', textAlign: 'center', background: '#e0e0e0', fontWeight: 'bold', fontSize: 8, width: 110 }}>{t.thTeilenummer}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {form.membrane.map((row, i) => (
+                    <tr key={i} style={{ background: i % 2 === 0 ? '#fff' : '#f3f3f3' }}>
+                      {(['pos', 'stk', 'bezeichnung', 'teilenummer'] as (keyof MembranRow)[]).map(f => (
+                        <td key={f} style={{ border: '1px solid #000', padding: '1px 3px', fontSize: 8 }}>
+                          <input type="text" value={row[f]} onChange={e => setMembran(i, f, e.target.value)}
+                            placeholder={f === 'bezeichnung' && i === 0 ? 'Membrane' : ''}
+                            style={{ width: '100%', border: 'none', outline: 'none', padding: 1, background: 'transparent', color: '#000', fontSize: 8, fontFamily: 'Arial' }} />
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="no-print" style={{ marginTop: 4, display: 'flex', gap: 4 }}>
+              <button onClick={addMembran}
+                style={{ fontSize: 8, padding: '2px 10px', background: '#e8f0ff', border: '1px solid #99b', borderRadius: 3, cursor: 'pointer', fontFamily: 'Arial' }}>
+                {t.btnZeileHinzu}
+              </button>
+              <button onClick={removeMembran}
+                disabled={form.membrane.length <= 1}
+                style={{ fontSize: 8, padding: '2px 10px', background: form.membrane.length > 1 ? '#fdd' : '#eee', border: '1px solid #bbb', borderRadius: 3, cursor: form.membrane.length > 1 ? 'pointer' : 'default', color: form.membrane.length > 1 ? '#900' : '#999', fontFamily: 'Arial' }}>
+                {t.btnZeileEntf}
+              </button>
+            </div>
+          </div>
+
+          {/* Prüftabelle Seite 1 */}
+          <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+            <colgroup>
+              <col style={{ width: '47%' }} /><col style={{ width: '4%' }} />
+              <col style={{ width: '5%' }} /><col style={{ width: '44%' }} />
+            </colgroup>
+            <thead>
+              <tr>
+                <th style={thStyle}><strong>{t.colPruefpunkt}</strong></th>
+                <th style={{ ...thStyle, textAlign: 'center', fontSize: 7.5 }}>{t.colOk}</th>
+                <th style={{ ...thStyle, textAlign: 'center', fontSize: 7.5 }}>{t.colName}</th>
+                <th style={{ ...thStyle, fontSize: 7 }}>{t.colBemerkung}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {alleZeilen.map((z, i) => (
+                <PruefZeile key={i} zeile={z}
+                  state={form.zeilenState[i] ?? { ck: 0, name: '', bem: '' }}
+                  onChange={p => setZeile(i, p)} rowIndex={i} t={t} />
+              ))}
+              {/* Spezialzeilen direkt nach allen Prüfpunkten */}
+              {renderSpecial(0, S2_OFFSET)}
+              {renderSpecial(1, S2_OFFSET + 1)}
+              {renderSpecial(2, S2_OFFSET + 2)}
+            </tbody>
+          </table>
+        </div>
+
+        {/* ══════════════ SEITE 2: Fuß + Unterschriften ══════════════ */}
+        <div className="a4" style={{ width: 'min(210mm, 100%)', background: '#fff', padding: '10mm 11mm', boxShadow: '0 3px 16px rgba(0,0,0,.25)', boxSizing: 'border-box', overflow: 'hidden' }}>
+
+          {/* Zeitenerfassung – pro Monteur ein Block */}
+          <div style={{ marginBottom: 10 }}>
+
+            {/* Monteur-Stepper */}
+            <div className="no-print" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <span style={{ fontSize: 9, fontWeight: 'bold' }}>{t.labelMonteur}:</span>
+              <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #aaa', borderRadius: 4, overflow: 'hidden' }}>
+                <button
+                  onClick={removeMonteur}
+                  disabled={form.monteure.length <= 1}
+                  style={{
+                    width: 28, height: 24, fontSize: 16, lineHeight: 1, border: 'none', borderRight: '1px solid #aaa',
+                    background: form.monteure.length > 1 ? '#fdd' : '#eee',
+                    color: form.monteure.length > 1 ? '#900' : '#aaa',
+                    cursor: form.monteure.length > 1 ? 'pointer' : 'default', fontFamily: 'Arial',
+                  }}>−</button>
+                <span style={{ minWidth: 28, textAlign: 'center', fontSize: 11, fontWeight: 'bold', padding: '0 6px', userSelect: 'none' }}>
+                  {form.monteure.length}
+                </span>
+                <button
+                  onClick={addMonteur}
+                  style={{
+                    width: 28, height: 24, fontSize: 16, lineHeight: 1, border: 'none', borderLeft: '1px solid #aaa',
+                    background: '#e8f0ff', color: '#226', cursor: 'pointer', fontFamily: 'Arial',
+                  }}>+</button>
+              </div>
+            </div>
+
+            {form.monteure.map((monteur, mi) => {
+              const monteurTotal = monteur.tage.reduce((sum, tag) => sum + calcNettoMin(tag), 0);
+              return (
+                <div key={mi} style={{ marginBottom: 8, border: '1px solid #000', borderRadius: 2 }}>
+                  {/* Monteur-Kopfzeile */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#cfdff5', padding: '3px 6px', borderBottom: '1px solid #000' }}>
+                    <strong style={{ fontSize: 8, whiteSpace: 'nowrap' }}>{t.labelMonteur} {mi + 1}:</strong>
+                    <input
+                      type="text"
+                      value={monteur.name}
+                      onChange={e => setMonteurName(mi, e.target.value)}
+                      style={{ flex: 1, border: 'none', borderBottom: '1px solid #666', outline: 'none', fontFamily: 'Arial', fontSize: 9, fontWeight: 'bold', background: 'transparent', padding: '1px 2px' }}
+                    />
+                    {monteurTotal > 0 && (
+                      <span style={{ fontSize: 8, fontWeight: 'bold', background: '#e8f4e8', padding: '1px 6px', borderRadius: 3, border: '1px solid #aaa', whiteSpace: 'nowrap' }}>
+                        Σ {formatMin(monteurTotal)}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Tageszeilen */}
+                  <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+                    <colgroup>
+                      <col style={{ width: '16%' }} />
+                      <col style={{ width: '14%' }} />
+                      <col style={{ width: '14%' }} />
+                      <col style={{ width: '11%' }} />
+                      <col style={{ width: '16%' }} />
+                      <col style={{ width: '25%' }} />
+                    </colgroup>
+                    {mi === 0 && (
+                      <thead>
+                        <tr>
+                          <th style={{ ...thStyle, textAlign: 'center', fontSize: 7.5, background: '#e0e0e0' }}>{t.thDatum}</th>
+                          <th style={{ ...thStyle, textAlign: 'center', fontSize: 7.5, background: '#e0e0e0' }}>{t.thAzVon}</th>
+                          <th style={{ ...thStyle, textAlign: 'center', fontSize: 7.5, background: '#e0e0e0' }}>{t.thAzBis}</th>
+                          <th style={{ ...thStyle, textAlign: 'center', fontSize: 7.5, background: '#e0e0e0' }}>{t.thPause}</th>
+                          <th style={{ ...thStyle, textAlign: 'center', fontSize: 7.5, background: '#e0f0e0' }}>{t.labelGesamtAZ}</th>
+                          <th style={{ ...thStyle, textAlign: 'center', fontSize: 7.5, background: '#e0e0e0' }}>{t.thTagTyp}</th>
+                        </tr>
+                      </thead>
+                    )}
+                    <tbody>
+                      {monteur.tage.map((tag, ti) => {
+                        const netto = calcNettoMin(tag);
+                        return (
+                          <tr key={ti} style={{ background: ti % 2 === 0 ? '#fff' : '#f8f8f8' }}>
+                            <td style={{ ...cellStyle, fontSize: 8 }}>
+                              <input type="date" value={tag.datum} onChange={e => setMontagTag(mi, ti, 'datum', e.target.value)}
+                                style={{ ...inp(), fontSize: 7.5, cursor: 'pointer', colorScheme: 'light', color: '#000' }} />
+                            </td>
+                            <td style={{ ...cellStyle, fontSize: 8, textAlign: 'center' }}>
+                              <input type="time" value={tag.vonZeit} onChange={e => setMontagTag(mi, ti, 'vonZeit', e.target.value)}
+                                style={{ ...inp(), textAlign: 'center', cursor: 'pointer', colorScheme: 'light', color: '#000' }} />
+                            </td>
+                            <td style={{ ...cellStyle, fontSize: 8, textAlign: 'center' }}>
+                              <input type="time" value={tag.bisZeit} onChange={e => setMontagTag(mi, ti, 'bisZeit', e.target.value)}
+                                style={{ ...inp(), textAlign: 'center', cursor: 'pointer', colorScheme: 'light', color: '#000' }} />
+                            </td>
+                            <td style={{ ...cellStyle, fontSize: 8, textAlign: 'center' }}>
+                              <input type="number" min={0} value={tag.pauseMin} onChange={e => setMontagTag(mi, ti, 'pauseMin', e.target.value)}
+                                style={{ ...inp(), textAlign: 'center' }} />
+                            </td>
+                            <td style={{ ...cellStyle, fontSize: 8, textAlign: 'center', fontWeight: 'bold', background: ti % 2 === 0 ? '#e8f4e8' : '#daeeda' }}>
+                              {formatMin(netto)}
+                            </td>
+                            <td style={{ ...cellStyle, padding: 2 }}>
+                              {(() => {
+                                const bgMap: Record<string, string> = {
+                                  '': ti % 2 === 0 ? '#fff' : '#f8f8f8',
+                                  feiertag: '#fff3cd',
+                                  samstag:  '#ddeeff',
+                                  sonntag:  '#fde8e8',
+                                };
+                                return (
+                                  <select
+                                    value={tag.tagTyp}
+                                    onChange={e => setMontagTag(mi, ti, 'tagTyp', e.target.value)}
+                                    style={{
+                                      width: '100%', border: 'none', outline: 'none', fontFamily: 'Arial',
+                                      fontSize: 7.5, background: bgMap[tag.tagTyp], cursor: 'pointer',
+                                      padding: '1px 2px', borderRadius: 2,
+                                    }}>
+                                    <option value="">{t.tagTypNormal}</option>
+                                    <option value="feiertag">{t.tagTypFeiertag}</option>
+                                    <option value="samstag">{t.tagTypSamstag}</option>
+                                    <option value="sonntag">{t.tagTypSonntag}</option>
+                                  </select>
+                                );
+                              })()}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+
+                  {/* + Tag / - Tag Buttons */}
+                  <div className="no-print" style={{ padding: '3px 6px', display: 'flex', gap: 4 }}>
+                    <button onClick={() => addTag(mi)}
+                      style={{ fontSize: 8, padding: '2px 10px', background: '#e8f0ff', border: '1px solid #99b', borderRadius: 3, cursor: 'pointer', fontFamily: 'Arial' }}>
+                      {t.btnTagHinzu}
+                    </button>
+                    <button onClick={() => removeTag(mi, monteur.tage.length - 1)}
+                      disabled={monteur.tage.length <= 1}
+                      style={{ fontSize: 8, padding: '2px 10px', background: monteur.tage.length > 1 ? '#fdd' : '#eee', border: '1px solid #bbb', borderRadius: 3, cursor: monteur.tage.length > 1 ? 'pointer' : 'default', color: monteur.tage.length > 1 ? '#900' : '#999', fontFamily: 'Arial' }}>
+                      {t.btnTagEntf2}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Gesamt-Summe */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10, marginTop: 6, padding: '5px 8px', border: '1px solid #aaa', borderRadius: 4, background: '#f7f7f7' }}>
+              {/* Gesamt */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                <strong style={{ fontSize: 9 }}>{t.labelGesamtAZ}</strong>
+                <span style={{ fontWeight: 'bold', fontSize: 10, background: '#e8f4e8', padding: '2px 10px', borderRadius: 3, border: '1px solid #aaa' }}>
+                  {gesamtAZ}
+                </span>
+              </div>
+              {/* Samstag – nur wenn > 0 */}
+              {gesamtBreakdown.samstag > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <span style={{ fontSize: 8, color: '#555' }}>{t.tagTypSamstag}:</span>
+                  <span style={{ fontWeight: 'bold', fontSize: 9, background: '#ddeeff', padding: '2px 8px', borderRadius: 3, border: '1px solid #99bbdd' }}>
+                    {formatMin(gesamtBreakdown.samstag)}
+                  </span>
+                </div>
+              )}
+              {/* Sonntag – nur wenn > 0 */}
+              {gesamtBreakdown.sonntag > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <span style={{ fontSize: 8, color: '#555' }}>{t.tagTypSonntag}:</span>
+                  <span style={{ fontWeight: 'bold', fontSize: 9, background: '#fde8e8', padding: '2px 8px', borderRadius: 3, border: '1px solid #ddaaaa' }}>
+                    {formatMin(gesamtBreakdown.sonntag)}
+                  </span>
+                </div>
+              )}
+              {/* Feiertag – nur wenn > 0 */}
+              {gesamtBreakdown.feiertag > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <span style={{ fontSize: 8, color: '#555' }}>{t.tagTypFeiertag}:</span>
+                  <span style={{ fontWeight: 'bold', fontSize: 9, background: '#fff3cd', padding: '2px 8px', borderRadius: 3, border: '1px solid #ddcc88' }}>
+                    {formatMin(gesamtBreakdown.feiertag)}
+                  </span>
+                </div>
+              )}
+              {/* Nachtstunden – nur wenn > 0 */}
+              {gesamtBreakdown.nacht > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <span style={{ fontSize: 8, color: '#555' }}>{t.tagTypNacht}:</span>
+                  <span style={{ fontWeight: 'bold', fontSize: 9, background: '#e8e0f8', padding: '2px 8px', borderRadius: 3, border: '1px solid #aa99cc' }}>
+                    {formatMin(gesamtBreakdown.nacht)}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Ersatzteile + Zubehör */}
+          <div style={{ marginTop: 12, border: '1px solid #000', padding: 10 }}>
+            <strong style={{ fontSize: 9, letterSpacing: '.03em' }}>{t.sectionMaterial}</strong>
+            <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 6 }}>
+                <thead>
+                  <tr>
+                    <th style={{ border: '1px solid #000', padding: '2px 4px', textAlign: 'center', background: '#e0e0e0', fontWeight: 'bold', fontSize: 8, width: 40 }}>{t.thPos}</th>
+                    <th style={{ border: '1px solid #000', padding: '2px 4px', textAlign: 'center', background: '#e0e0e0', fontWeight: 'bold', fontSize: 8 }}>{t.thBeschreibung}</th>
+                    <th style={{ border: '1px solid #000', padding: '2px 4px', textAlign: 'center', background: '#e0e0e0', fontWeight: 'bold', fontSize: 8, width: 100 }}>{t.thTeilenummer}</th>
+                    <th style={{ border: '1px solid #000', padding: '2px 4px', textAlign: 'center', background: '#e0e0e0', fontWeight: 'bold', fontSize: 8, width: 40 }}>{t.thStk}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {form.material.map((row, i) => (
+                    <tr key={i} style={{ background: i % 2 === 0 ? '#fff' : '#f3f3f3' }}>
+                      {(['pos', 'beschreibung', 'teilenummer', 'stk'] as (keyof MaterialRow)[]).map(f => (
+                        <td key={f} style={{ border: '1px solid #000', padding: '1px 3px', fontSize: 8 }}>
+                          <input type="text" value={row[f]} onChange={e => setMaterial(i, f, e.target.value)}
+                            style={{ width: '100%', border: 'none', outline: 'none', padding: 1, background: 'transparent', color: '#000', fontSize: 8, fontFamily: 'Arial' }} />
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Unterschriften */}
+          <div style={{ marginTop: 12, border: '1px solid #000', padding: 10, boxSizing: 'border-box' }}>
+            <strong style={{ fontSize: 9, letterSpacing: '.03em' }}>{t.sectionSign}</strong>
+            <div style={{ display: 'flex', gap: 12, marginTop: 10, width: '100%', boxSizing: 'border-box', overflow: 'hidden' }}>
+              {(['sig-gerlieva', 'sig-kunde'] as const).map(id => {
+                const isGerlieva  = id === 'sig-gerlieva';
+                const label       = isGerlieva ? t.sigGerlieva : t.sigKunde;
+                const nameKey     = isGerlieva ? 'nameGerlieva' : 'nameKunde';
+                const placeholder = isGerlieva ? t.sigPlaceholderTech : t.sigPlaceholderKunde;
+                return (
+                  <div key={id} style={{ flex: '1 1 0', minWidth: 0, border: '1px solid #ccc', borderRadius: 4, padding: 8, background: '#fafafa', boxSizing: 'border-box', overflow: 'hidden' }}>
+                    <div style={{ fontSize: 8, fontWeight: 'bold', marginBottom: 4 }}>{label}</div>
+                    <SigPreview dataUrl={form.signatures[id]} onClick={() => setSigModal({ id, label })} tapLabel={t.sigTap} />
+                    <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <input type="text" value={form[nameKey]} onChange={e => setField(nameKey, e.target.value)}
+                        placeholder={placeholder}
+                        style={{ flex: 1, border: 'none', borderBottom: '1px solid #aaa', outline: 'none', fontSize: 7.5, background: 'transparent', fontFamily: 'Arial' }} />
+                      <button onClick={() => clearSig(id)}
+                        style={{ fontSize: 7, padding: '2px 6px', background: '#eee', border: '1px solid #bbb', borderRadius: 3, cursor: 'pointer' }}>
+                        {t.sigDelete}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{ textAlign: 'center', marginTop: 12, fontWeight: 'bold', fontSize: 11 }}>
+              {t.labelDatum}{' '}
+              <input type="date" value={form.signatureDate} onChange={e => setField('signatureDate', e.target.value)}
+                style={{ border: '1px solid #ccc', padding: '4px 8px', borderRadius: 4, fontSize: 11, colorScheme: 'light', color: '#000' }} />
+            </div>
+          </div>
+
         </div>
       </div>
 
-      {sigModal && <SignatureModal label={sigModal.label} existing={form.signatures[sigModal.key as keyof typeof form.signatures]} onClose={dataUrl => { if (dataUrl) u({ signatures: { ...form.signatures, [sigModal.key]: dataUrl } }); setSigModal(null); }} t={t} />}
+      {/* ── Modals & Notifications ── */}
+      {sigModal && (
+        <SignatureModal label={sigModal.label} existing={form.signatures[sigModal.id]}
+          onClose={dataUrl => handleSigClose(sigModal.id, dataUrl)} t={t} />
+      )}
     </>
   );
 }
