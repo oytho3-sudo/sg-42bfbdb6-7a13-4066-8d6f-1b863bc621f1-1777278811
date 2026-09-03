@@ -109,10 +109,10 @@ export default function DokumentePage() {
         `)
         .order("uploaded_at", { ascending: false });
 
-      // Admin sieht nur veröffentlichte Dokumente (shared_with_all = true)
-      // Techniker sehen durch RLS: eigene Dokumente + individuell freigegebene + shared_with_users
+      // Admin sieht: eigene Dokumente + veröffentlichte Dokumente von Technikern
+      // Techniker sehen durch RLS: eigene Dokumente + individuell freigegebene
       if (adminMode) {
-        query = query.eq("shared_with_all", true);
+        query = query.or(`user_id.eq.${userId},shared_with_all.eq.true`);
       }
       // Für Techniker KEIN Filter - RLS regelt die Berechtigung vollständig
 
