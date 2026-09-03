@@ -890,3 +890,474 @@ const printStyles = `
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const LOGO_B64 = '';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Haupt-Komponente
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export default function WartungsprotokollPage() {
+  const [lang, setLang]         = useState<Lang>('de');
+  const t = translations[lang] as T;
+
+  const [form, setForm]         = useState<FormData>(initialForm);
+  const [sigModal, setSigModal] = useState<{ key: string; label: string } | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const u = (changes: Partial<FormData>) => setForm(f => ({ ...f, ...changes }));
+  const uMonteur = (idx: number, changes: Partial<Monteur>) => {
+    const arr = [...form.monteure]; arr[idx] = { ...arr[idx], ...changes }; u({ monteure: arr });
+  };
+  const uTag = (mIdx: number, tIdx: number, changes: Partial<MontagTag>) => {
+    const arr = [...form.monteure];
+    const tage = [...arr[mIdx].tage];
+    tage[tIdx] = { ...tage[tIdx], ...changes };
+    arr[mIdx] = { ...arr[mIdx], tage };
+    u({ monteure: arr });
+  };
+  const uZeile = (idx: number, changes: Partial<ZeilenState>) => {
+    const arr = [...form.zeilenState]; arr[idx] = { ...arr[idx], ...changes }; u({ zeilenState: arr });
+  };
+  const uMat = (idx: number, changes: Partial<MaterialRow>) => {
+    const arr = [...form.material]; arr[idx] = { ...arr[idx], ...changes }; u({ material: arr });
+  };
+  const uTeil = (idx: number, changes: Partial<TeilRow>) => {
+    const arr = [...form.teile]; arr[idx] = { ...arr[idx], ...changes }; u({ teile: arr });
+  };
+  const uMembran = (idx: number, changes: Partial<MembranRow>) => {
+    const arr = [...form.membrane]; arr[idx] = { ...arr[idx], ...changes }; u({ membrane: arr });
+  };
+  const collectFormData = () => ({ ...form, dokumentTyp: DOKUMENT_TYP, version: 1, ts: new Date().toISOString() });
+
+  const handleSaveJSON = () => {
+    const json = JSON.stringify(collectFormData(), null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url  = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = buildFileName('json', form.protokollNr);
+    a.click(); URL.revokeObjectURL(url);
+    toast({ title: t.toastSaved, duration: 2000 });
+  };
+
+  const handleLoadJSON = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const loaded = JSON.parse(ev.target?.result as string) as FormData;
+        if (!loaded.dokumentTyp || loaded.dokumentTyp !== DOKUMENT_TYP) {
+          toast({ title: t.toastWrongType, variant: 'destructive', duration: 4000 });
+          return;
+        }
+        setForm(loaded);
+        toast({ title: t.toastLoaded, duration: 2000 });
+      } catch (err) {
+        toast({ title: t.toastInvalid, description: String(err), variant: 'destructive', duration: 3000 });
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
+  const handleUploadJSON = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { toast({ title: t.toastNotLoggedIn, variant: 'destructive', duration: 3000 }); return; }
+    setIsUploading(true);
+    try {
+      const payload = collectFormData();
+      const json = JSON.stringify(payload, null, 2);
+      const blob = new Blob([json], { type: 'application/json' });
+      const filename = buildFileName('json', form.protokollNr);
+      const filepath = `${user.id}/${filename}`;
+      const { error: uploadError } = await supabase.storage.from(DOCUMENTS_BUCKET).upload(filepath, blob, { upsert: true });
+      if (uploadError) throw uploadError;
+      const { error: insertError } = await supabase.from(DOCUMENTS_TABLE).insert({
+        user_id: user.id, document_type: DOKUMENT_TYP, filename, file_path: filepath,
+        metadata: { protokollNr: form.protokollNr, kunde: form.kunde, wartungDatum: form.wartungDatum }
+      });
+      if (insertError) throw insertError;
+      toast({ title: t.toastUploaded, duration: 2000 });
+    } catch (err) {
+      toast({ title: t.toastUploadError, description: String(err), variant: 'destructive', duration: 3000 });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleSavePDF = () => {
+    alert(t.pdfAlert);
+    window.print();
+  };
+
+  const btnStyle: React.CSSProperties = { background: '#2a7a2a', color: '#fff', border: 'none', borderRadius: 4, padding: '8px 14px', fontSize: 11, cursor: 'pointer', fontFamily: 'Arial', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 6 };
+
+  return (
+    <>
+      <style dangerouslySetInnerHTML={{ __html: printStyles }} />
+      <div className="no-print" style={{ position: 'sticky', top: 0, background: '#1a2744', color: '#fff', padding: '10px 16px', display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', zIndex: 998, boxShadow: '0 2px 6px rgba(0,0,0,0.15)' }}>
+        <a href="/" style={{ ...btnStyle, textDecoration: 'none' }}>{t.home}</a>
+        <span className="toolbar-title" style={{ fontSize: 13, fontWeight: 'bold', flex: 1 }}>{t.toolbarTitle}</span>
+        <button onClick={() => fileInputRef.current?.click()} style={btnStyle}>{t.loadJson}</button>
+        <input ref={fileInputRef} type="file" accept=".json" onChange={handleLoadJSON} style={{ display: 'none' }} />
+        <button onClick={handleSaveJSON} style={btnStyle}>{t.saveJson}</button>
+        <button onClick={handleUploadJSON} disabled={isUploading} style={{ ...btnStyle, opacity: isUploading ? 0.6 : 1 }}>
+          {isUploading ? t.uploadingJson : t.uploadJson}
+        </button>
+        <button onClick={handleSavePDF} style={{ ...btnStyle, background: '#e8460a' }}>{t.savePdf}</button>
+        <LangSwitcher current={lang} onChange={setLang} />
+      </div>
+
+      <div id="page-wrapper" style={{ minHeight: '100vh', background: '#e0e0e0', padding: '16px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div className="a4" style={{ width: '210mm', margin: '0 auto', background: 'white', padding: '10mm 11mm', boxShadow: '0 2px 10px rgba(0,0,0,0.1)', boxSizing: 'border-box', fontFamily: 'Arial, sans-serif', fontSize: 9, lineHeight: 1.4, color: '#000' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+            <tbody>
+              <tr>
+                <td rowSpan={3} style={{ border: '1px solid #000', verticalAlign: 'middle', textAlign: 'center', padding: 0, overflow: 'hidden' }}>
+                  {/* Logo entfernt */}
+                </td>
+                <td colSpan={6} style={{ border: '1px solid #000', padding: 1 }}></td>
+              </tr>
+              <tr>
+                <td colSpan={6} style={{ border: '1px solid #000', fontWeight: 'bold', fontSize: 13, textAlign: 'center', letterSpacing: '.5px', padding: 2 }}>
+                  {t.docTitle}
+                </td>
+              </tr>
+              <tr>
+                <td style={{ border: '1px solid #000', fontSize: 7.5, fontWeight: 'bold', padding: '1px 3px', width: '15%' }}>{t.labelKunde}</td>
+                <td style={{ border: '1px solid #000', padding: '1px 3px', width: '25%' }}>
+                  <input type="text" value={form.kunde} onChange={e => u({ kunde: e.target.value })} style={{ border: 'none', outline: 'none', width: '100%', fontSize: 8, fontFamily: 'Arial', background: 'transparent' }} />
+                </td>
+                <td style={{ border: '1px solid #000', fontSize: 7.5, fontWeight: 'bold', padding: '1px 3px', width: '15%' }}>{t.labelKundenNr}</td>
+                <td style={{ border: '1px solid #000', padding: '1px 3px', width: '15%' }}>
+                  <input type="text" value={form.kundenNr} onChange={e => u({ kundenNr: e.target.value })} style={{ border: 'none', outline: 'none', width: '100%', fontSize: 8, fontFamily: 'Arial', background: 'transparent' }} />
+                </td>
+                <td style={{ border: '1px solid #000', fontSize: 7.5, fontWeight: 'bold', padding: '1px 3px', width: '10%' }}>{t.labelDgm}</td>
+                <td style={{ border: '1px solid #000', padding: '1px 3px', width: '20%' }}>
+                  <input type="text" value={form.dgm} onChange={e => u({ dgm: e.target.value })} style={{ border: 'none', outline: 'none', width: '100%', fontSize: 8, fontFamily: 'Arial', background: 'transparent' }} />
+                </td>
+              </tr>
+              <tr>
+                <td style={{ border: '1px solid #000', fontSize: 7.5, fontWeight: 'bold', padding: '1px 3px' }}>{t.labelProtokollNr}</td>
+                <td style={{ border: '1px solid #000', padding: '1px 3px' }}>
+                  <input type="text" value={form.protokollNr} onChange={e => u({ protokollNr: e.target.value })} style={{ border: 'none', outline: 'none', width: '100%', fontSize: 8, fontFamily: 'Arial', background: 'transparent' }} />
+                </td>
+                <td style={{ border: '1px solid #000', fontSize: 7.5, fontWeight: 'bold', padding: '1px 3px' }}>{t.labelArtikelNr}</td>
+                <td style={{ border: '1px solid #000', padding: '1px 3px' }}>
+                  <input type="text" value={form.artikelNr} onChange={e => u({ artikelNr: e.target.value })} style={{ border: 'none', outline: 'none', width: '100%', fontSize: 8, fontFamily: 'Arial', background: 'transparent' }} />
+                </td>
+                <td style={{ border: '1px solid #000', fontSize: 7.5, fontWeight: 'bold', padding: '1px 3px' }}>{t.labelRegNr}</td>
+                <td style={{ border: '1px solid #000', padding: '1px 3px' }}>
+                  <input type="text" value={form.regNr} onChange={e => u({ regNr: e.target.value })} style={{ border: 'none', outline: 'none', width: '100%', fontSize: 8, fontFamily: 'Arial', background: 'transparent' }} />
+                </td>
+                <td style={{ border: '1px solid #000', fontSize: 7.5, fontWeight: 'bold', padding: '1px 3px' }}>{t.labelKom}</td>
+                <td style={{ border: '1px solid #000', padding: '1px 3px' }}>
+                  <input type="text" value={form.kom} onChange={e => u({ kom: e.target.value })} style={{ border: 'none', outline: 'none', width: '100%', fontSize: 8, fontFamily: 'Arial', background: 'transparent' }} />
+                </td>
+              </tr>
+              <tr>
+                <td colSpan={2} style={{ border: '1px solid #000', fontSize: 7.5, fontWeight: 'bold', padding: '1px 3px' }}>{t.labelWartungDatumHead}</td>
+                <td colSpan={5} style={{ border: '1px solid #000', padding: '1px 3px' }}>
+                  <input type="date" value={form.wartungDatum} onChange={e => u({ wartungDatum: e.target.value })} style={{ border: 'none', outline: 'none', width: '100%', fontSize: 8, fontFamily: 'Arial', background: 'transparent' }} />
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div style={{ marginTop: 6 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+              <thead>
+                <tr>
+                  <th style={{ border: '1px solid #000', background: '#cfdff5', fontWeight: 'bold', fontSize: 8, padding: '2px 3px', width: '50%' }}>{t.colPruefpunkt}</th>
+                  <th style={{ border: '1px solid #000', background: '#cfdff5', fontWeight: 'bold', fontSize: 8, padding: '2px 3px', width: '8%' }}>{t.colOk}</th>
+                  <th style={{ border: '1px solid #000', background: '#cfdff5', fontWeight: 'bold', fontSize: 8, padding: '2px 3px', width: '12%' }}>{t.colName}</th>
+                  <th style={{ border: '1px solid #000', background: '#cfdff5', fontWeight: 'bold', fontSize: 8, padding: '2px 3px', width: '30%' }}>{t.colBemerkung}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {/* Spezialzeile 0: Medium-Versorgung / Filter */}
+                <tr>
+                  <td colSpan={4} style={{ border: '1px solid #000', padding: '2px 3px', fontSize: 8.5 }}>
+                    <strong>{t.versorgTitle}</strong> {' '}
+                    <Ck2 state={form.versorgung.ringleitung} onChange={v => u({ versorgung: { ...form.versorgung, ringleitung: v } })} /> {t.versorgRingleitung}
+                    {' '}<Ck2 state={form.versorgung.dosieranlage} onChange={v => u({ versorgung: { ...form.versorgung, dosieranlage: v } })} /> {t.versorgDosieranlage}
+                    {' '}<Ck2 state={form.versorgung.unbekannt} onChange={v => u({ versorgung: { ...form.versorgung, unbekannt: v } })} /> {t.versorgUnbekannt}
+                    <br/>
+                    <strong>{t.filterTitle}</strong> {' '}
+                    <Ck2 state={form.versorgung.filterVorhanden} onChange={v => u({ versorgung: { ...form.versorgung, filterVorhanden: v } })} /> {t.filterVorhanden}
+                    {' '}<Ck2 state={form.versorgung.filterManuell} onChange={v => u({ versorgung: { ...form.versorgung, filterManuell: v } })} /> {t.filterManuell}
+                    {' '}<Ck2 state={form.versorgung.filterAutomatisch} onChange={v => u({ versorgung: { ...form.versorgung, filterAutomatisch: v } })} /> {t.filterAutomatisch}
+                  </td>
+                </tr>
+                {/* Spezialzeile 1: Ausgetauschte Teile */}
+                <tr>
+                  <td colSpan={4} style={{ border: '1px solid #000', padding: '2px 3px', fontSize: 8.5 }}>
+                    <strong>{t.tauschTitle}</strong> {' '}
+                    <Ck2 state={form.tausch.membrane} onChange={v => u({ tausch: { ...form.tausch, membrane: v } })} /> {t.tauschMembrane}
+                    {' '}<Ck2 state={form.tausch.dichtungen} onChange={v => u({ tausch: { ...form.tausch, dichtungen: v } })} /> {t.tauschDichtungen}
+                    {' '}<Ck2 state={form.tausch.avs} onChange={v => u({ tausch: { ...form.tausch, avs: v } })} /> {t.tauschAvs}
+                    {' '}<Ck2 state={form.tausch.oringe} onChange={v => u({ tausch: { ...form.tausch, oringe: v } })} /> {t.tauschORinge}
+                  </td>
+                </tr>
+                {/* Spezialzeile 2: Dichtigkeitsprüfung */}
+                <tr>
+                  <td colSpan={4} style={{ border: '1px solid #000', padding: '2px 3px', fontSize: 8.5 }}>
+                    <strong>{t.dichtTitle}</strong> {' '}
+                    <Ck2 state={form.dicht.steuerluftAktiv} onChange={v => u({ dicht: { ...form.dicht, steuerluftAktiv: v } })} /> {t.dichtSteuerluft} {' '}
+                    <input type="number" step="0.1" value={form.dicht.steuerluftBar} onChange={e => u({ dicht: { ...form.dicht, steuerluftBar: e.target.value } })}
+                      style={{ border: '1px solid #bbb', borderRadius: 2, outline: 'none', width: 60, fontSize: 8, fontFamily: 'Arial', padding: '1px 3px', background: 'transparent' }} /> {t.dichtBar}
+                    {' '}<Ck2 state={form.dicht.spruehluftAktiv} onChange={v => u({ dicht: { ...form.dicht, spruehluftAktiv: v } })} /> {t.dichtSpruehluft} {' '}
+                    <input type="number" step="0.1" value={form.dicht.spruehluftBar} onChange={e => u({ dicht: { ...form.dicht, spruehluftBar: e.target.value } })}
+                      style={{ border: '1px solid #bbb', borderRadius: 2, outline: 'none', width: 60, fontSize: 8, fontFamily: 'Arial', padding: '1px 3px', background: 'transparent' }} /> {t.dichtBar}
+                  </td>
+                </tr>
+                {alleZeilen.map((zeile, idx) => (
+                  <PruefZeile key={idx} zeile={zeile} state={form.zeilenState[idx + 3]} onChange={ch => uZeile(idx + 3, ch)} rowIndex={idx} t={t} />
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* SEITE 2 */}
+          <div style={{ pageBreakBefore: 'always', marginTop: 8 }}>
+            <div style={{ fontWeight: 'bold', fontSize: 9, padding: '3px 0', borderBottom: '2px solid #1a2744', marginBottom: 4 }}>{t.labelWartung}</div>
+            <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 6 }}>
+              <thead>
+                <tr>
+                  <th style={{ border: '1px solid #000', background: '#cfdff5', fontWeight: 'bold', fontSize: 8, padding: '2px 3px', textAlign: 'center' }}>{t.thDatum}</th>
+                  <th style={{ border: '1px solid #000', background: '#cfdff5', fontWeight: 'bold', fontSize: 8, padding: '2px 3px', textAlign: 'center' }}>{t.thTechniker}</th>
+                  <th style={{ border: '1px solid #000', background: '#cfdff5', fontWeight: 'bold', fontSize: 8, padding: '2px 3px', textAlign: 'center' }}>{t.thAzVon}</th>
+                  <th style={{ border: '1px solid #000', background: '#cfdff5', fontWeight: 'bold', fontSize: 8, padding: '2px 3px', textAlign: 'center' }}>{t.thAzBis}</th>
+                  <th style={{ border: '1px solid #000', background: '#cfdff5', fontWeight: 'bold', fontSize: 8, padding: '2px 3px', textAlign: 'center' }}>{t.thPause}</th>
+                  <th style={{ border: '1px solid #000', background: '#cfdff5', fontWeight: 'bold', fontSize: 8, padding: '2px 3px', textAlign: 'center' }}>{t.thTagTyp}</th>
+                  <th className="no-print" style={{ border: '1px solid #000', background: '#cfdff5', fontWeight: 'bold', fontSize: 8, padding: '2px 3px', textAlign: 'center', width: 30 }}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {form.monteure.map((m, mIdx) => (
+                  <React.Fragment key={mIdx}>
+                    {m.tage.map((tag, tIdx) => (
+                      <tr key={`${mIdx}-${tIdx}`}>
+                        <td style={{ border: '1px solid #000', padding: '1px 3px', textAlign: 'center' }}>
+                          <input type="date" value={tag.datum} onChange={e => uTag(mIdx, tIdx, { datum: e.target.value })}
+                            style={{ border: 'none', outline: 'none', width: '100%', fontSize: 7.5, fontFamily: 'Arial', textAlign: 'center', background: 'transparent' }} />
+                        </td>
+                        <td style={{ border: '1px solid #000', padding: '1px 3px', textAlign: 'center' }}>
+                          <input type="text" value={m.name} onChange={e => uMonteur(mIdx, { name: e.target.value })}
+                            style={{ border: 'none', outline: 'none', width: '100%', fontSize: 7.5, fontFamily: 'Arial', textAlign: 'center', background: 'transparent' }} />
+                        </td>
+                        <td style={{ border: '1px solid #000', padding: '1px 3px', textAlign: 'center' }}>
+                          <input type="time" value={tag.vonZeit} onChange={e => uTag(mIdx, tIdx, { vonZeit: e.target.value })}
+                            style={{ border: 'none', outline: 'none', width: '100%', fontSize: 7.5, fontFamily: 'Arial', textAlign: 'center', background: 'transparent' }} />
+                        </td>
+                        <td style={{ border: '1px solid #000', padding: '1px 3px', textAlign: 'center' }}>
+                          <input type="time" value={tag.bisZeit} onChange={e => uTag(mIdx, tIdx, { bisZeit: e.target.value })}
+                            style={{ border: 'none', outline: 'none', width: '100%', fontSize: 7.5, fontFamily: 'Arial', textAlign: 'center', background: 'transparent' }} />
+                        </td>
+                        <td style={{ border: '1px solid #000', padding: '1px 3px', textAlign: 'center' }}>
+                          <input type="number" min="0" step="1" value={tag.pauseMin} onChange={e => uTag(mIdx, tIdx, { pauseMin: e.target.value })}
+                            style={{ border: 'none', outline: 'none', width: '100%', fontSize: 7.5, fontFamily: 'Arial', textAlign: 'center', background: 'transparent' }} />
+                        </td>
+                        <td style={{ border: '1px solid #000', padding: '1px 3px', textAlign: 'center' }}>
+                          <select value={tag.tagTyp} onChange={e => uTag(mIdx, tIdx, { tagTyp: e.target.value as any })}
+                            style={{ border: 'none', outline: 'none', width: '100%', fontSize: 7.5, fontFamily: 'Arial', textAlign: 'center', background: 'transparent', color: '#000', colorScheme: 'light' }}>
+                            <option value="">{t.tagTypNormal}</option>
+                            <option value="feiertag">{t.tagTypFeiertag}</option>
+                            <option value="samstag">{t.tagTypSamstag}</option>
+                            <option value="sonntag">{t.tagTypSonntag}</option>
+                          </select>
+                        </td>
+                        <td className="no-print" style={{ border: '1px solid #000', padding: '1px 3px', textAlign: 'center' }}>
+                          <button onClick={() => { const arr = [...form.monteure]; arr[mIdx].tage = arr[mIdx].tage.filter((_, i) => i !== tIdx); u({ monteure: arr }); }}
+                            style={{ background: '#d9534f', color: '#fff', border: 'none', borderRadius: 3, fontSize: 8, padding: '2px 4px', cursor: 'pointer' }}>
+                            {t.btnTagEntf}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    <tr className="no-print">
+                      <td colSpan={7} style={{ border: 'none', textAlign: 'left', padding: '2px 3px' }}>
+                        <button onClick={() => { const arr = [...form.monteure]; arr[mIdx].tage.push(emptyTag()); u({ monteure: arr }); }}
+                          style={{ background: '#5cb85c', color: '#fff', border: 'none', borderRadius: 3, fontSize: 8, padding: '3px 6px', cursor: 'pointer', marginRight: 4 }}>
+                          {t.btnTagHinzu}
+                        </button>
+                        {form.monteure.length > 1 && (
+                          <button onClick={() => u({ monteure: form.monteure.filter((_, i) => i !== mIdx) })}
+                            style={{ background: '#d9534f', color: '#fff', border: 'none', borderRadius: 3, fontSize: 8, padding: '3px 6px', cursor: 'pointer' }}>
+                            {t.btnMonteurEntf}
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  </React.Fragment>
+                ))}
+                <tr className="no-print">
+                  <td colSpan={7} style={{ border: 'none', textAlign: 'left', padding: '2px 3px' }}>
+                    <button onClick={() => u({ monteure: [...form.monteure, emptyMonteur()] })}
+                      style={{ background: '#0275d8', color: '#fff', border: 'none', borderRadius: 3, fontSize: 8, padding: '3px 6px', cursor: 'pointer' }}>
+                      {t.btnMonteurHinzu}
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div style={{ fontSize: 8, fontWeight: 'bold', marginBottom: 2 }}>{t.labelGesamtAZ} {calcGesamtMinutes(form.monteure)}</div>
+
+            <div style={{ fontWeight: 'bold', fontSize: 9, padding: '3px 0', borderBottom: '2px solid #1a2744', marginTop: 6, marginBottom: 4 }}>{t.sectionMaterial}</div>
+            <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 6 }}>
+              <thead>
+                <tr>
+                  <th style={{ border: '1px solid #000', background: '#cfdff5', fontWeight: 'bold', fontSize: 8, padding: '2px 3px', width: '8%' }}>{t.thPos}</th>
+                  <th style={{ border: '1px solid #000', background: '#cfdff5', fontWeight: 'bold', fontSize: 8, padding: '2px 3px', width: '52%' }}>{t.thBeschreibung}</th>
+                  <th style={{ border: '1px solid #000', background: '#cfdff5', fontWeight: 'bold', fontSize: 8, padding: '2px 3px', width: '30%' }}>{t.thTeilenummer}</th>
+                  <th style={{ border: '1px solid #000', background: '#cfdff5', fontWeight: 'bold', fontSize: 8, padding: '2px 3px', width: '10%' }}>{t.thStk}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {form.material.map((r, idx) => (
+                  <tr key={idx}>
+                    <td style={{ border: '1px solid #000', padding: '1px 3px', textAlign: 'center' }}>
+                      <input type="text" value={r.pos} onChange={e => uMat(idx, { pos: e.target.value })}
+                        style={{ border: 'none', outline: 'none', width: '100%', fontSize: 7.5, fontFamily: 'Arial', textAlign: 'center', background: 'transparent' }} />
+                    </td>
+                    <td style={{ border: '1px solid #000', padding: '1px 3px' }}>
+                      <input type="text" value={r.beschreibung} onChange={e => uMat(idx, { beschreibung: e.target.value })}
+                        style={{ border: 'none', outline: 'none', width: '100%', fontSize: 7.5, fontFamily: 'Arial', background: 'transparent' }} />
+                    </td>
+                    <td style={{ border: '1px solid #000', padding: '1px 3px' }}>
+                      <input type="text" value={r.teilenummer} onChange={e => uMat(idx, { teilenummer: e.target.value })}
+                        style={{ border: 'none', outline: 'none', width: '100%', fontSize: 7.5, fontFamily: 'Arial', background: 'transparent' }} />
+                    </td>
+                    <td style={{ border: '1px solid #000', padding: '1px 3px', textAlign: 'center' }}>
+                      <input type="text" value={r.stk} onChange={e => uMat(idx, { stk: e.target.value })}
+                        style={{ border: 'none', outline: 'none', width: '100%', fontSize: 7.5, fontFamily: 'Arial', textAlign: 'center', background: 'transparent' }} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            <div style={{ fontWeight: 'bold', fontSize: 9, padding: '3px 0', borderBottom: '2px solid #1a2744', marginTop: 6, marginBottom: 4 }}>{t.sectionTeile}</div>
+            <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 6 }}>
+              <thead>
+                <tr>
+                  <th style={{ border: '1px solid #000', background: '#cfdff5', fontWeight: 'bold', fontSize: 8, padding: '2px 3px', width: '8%' }}>{t.thPos}</th>
+                  <th style={{ border: '1px solid #000', background: '#cfdff5', fontWeight: 'bold', fontSize: 8, padding: '2px 3px', width: '42%' }}>{t.thBezeichnung}</th>
+                  <th style={{ border: '1px solid #000', background: '#cfdff5', fontWeight: 'bold', fontSize: 8, padding: '2px 3px', width: '30%' }}>{t.thTeilenummer}</th>
+                  <th style={{ border: '1px solid #000', background: '#cfdff5', fontWeight: 'bold', fontSize: 8, padding: '2px 3px', width: '20%' }}>{t.thRegNr}</th>
+                  <th className="no-print" style={{ border: '1px solid #000', background: '#cfdff5', fontWeight: 'bold', fontSize: 8, padding: '2px 3px', width: 30 }}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {form.teile.map((r, idx) => (
+                  <tr key={idx}>
+                    <td style={{ border: '1px solid #000', padding: '1px 3px', textAlign: 'center' }}>
+                      <input type="text" value={r.pos} onChange={e => uTeil(idx, { pos: e.target.value })}
+                        style={{ border: 'none', outline: 'none', width: '100%', fontSize: 7.5, fontFamily: 'Arial', textAlign: 'center', background: 'transparent' }} />
+                    </td>
+                    <td style={{ border: '1px solid #000', padding: '1px 3px' }}>
+                      <input type="text" value={r.bezeichnung} onChange={e => uTeil(idx, { bezeichnung: e.target.value })}
+                        style={{ border: 'none', outline: 'none', width: '100%', fontSize: 7.5, fontFamily: 'Arial', background: 'transparent' }} />
+                    </td>
+                    <td style={{ border: '1px solid #000', padding: '1px 3px' }}>
+                      <input type="text" value={r.teilenummer} onChange={e => uTeil(idx, { teilenummer: e.target.value })}
+                        style={{ border: 'none', outline: 'none', width: '100%', fontSize: 7.5, fontFamily: 'Arial', background: 'transparent' }} />
+                    </td>
+                    <td style={{ border: '1px solid #000', padding: '1px 3px' }}>
+                      <input type="text" value={r.registriernummer} onChange={e => uTeil(idx, { registriernummer: e.target.value })}
+                        style={{ border: 'none', outline: 'none', width: '100%', fontSize: 7.5, fontFamily: 'Arial', background: 'transparent' }} />
+                    </td>
+                    <td className="no-print" style={{ border: '1px solid #000', padding: '1px 3px', textAlign: 'center' }}>
+                      <button onClick={() => u({ teile: form.teile.filter((_, i) => i !== idx) })}
+                        style={{ background: '#d9534f', color: '#fff', border: 'none', borderRadius: 3, fontSize: 8, padding: '2px 4px', cursor: 'pointer' }}>
+                        {t.btnZeileEntf}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                <tr className="no-print">
+                  <td colSpan={5} style={{ border: 'none', textAlign: 'left', padding: '2px 3px' }}>
+                    <button onClick={() => u({ teile: [...form.teile, emptyTeil()] })}
+                      style={{ background: '#5cb85c', color: '#fff', border: 'none', borderRadius: 3, fontSize: 8, padding: '3px 6px', cursor: 'pointer' }}>
+                      {t.btnZeileHinzu}
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div style={{ fontWeight: 'bold', fontSize: 9, padding: '3px 0', borderBottom: '2px solid #1a2744', marginTop: 6, marginBottom: 4 }}>{t.sectionMembrane}</div>
+            <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 6 }}>
+              <thead>
+                <tr>
+                  <th style={{ border: '1px solid #000', background: '#cfdff5', fontWeight: 'bold', fontSize: 8, padding: '2px 3px', width: '8%' }}>{t.thPos}</th>
+                  <th style={{ border: '1px solid #000', background: '#cfdff5', fontWeight: 'bold', fontSize: 8, padding: '2px 3px', width: '10%' }}>{t.thStk}</th>
+                  <th style={{ border: '1px solid #000', background: '#cfdff5', fontWeight: 'bold', fontSize: 8, padding: '2px 3px', width: '52%' }}>{t.thBezeichnung}</th>
+                  <th style={{ border: '1px solid #000', background: '#cfdff5', fontWeight: 'bold', fontSize: 8, padding: '2px 3px', width: '30%' }}>{t.thTeilenummer}</th>
+                  <th className="no-print" style={{ border: '1px solid #000', background: '#cfdff5', fontWeight: 'bold', fontSize: 8, padding: '2px 3px', width: 30 }}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {form.membrane.map((r, idx) => (
+                  <tr key={idx}>
+                    <td style={{ border: '1px solid #000', padding: '1px 3px', textAlign: 'center' }}>
+                      <input type="text" value={r.pos} onChange={e => uMembran(idx, { pos: e.target.value })}
+                        style={{ border: 'none', outline: 'none', width: '100%', fontSize: 7.5, fontFamily: 'Arial', textAlign: 'center', background: 'transparent' }} />
+                    </td>
+                    <td style={{ border: '1px solid #000', padding: '1px 3px', textAlign: 'center' }}>
+                      <input type="text" value={r.stk} onChange={e => uMembran(idx, { stk: e.target.value })}
+                        style={{ border: 'none', outline: 'none', width: '100%', fontSize: 7.5, fontFamily: 'Arial', textAlign: 'center', background: 'transparent' }} />
+                    </td>
+                    <td style={{ border: '1px solid #000', padding: '1px 3px' }}>
+                      <input type="text" value={r.bezeichnung} onChange={e => uMembran(idx, { bezeichnung: e.target.value })}
+                        style={{ border: 'none', outline: 'none', width: '100%', fontSize: 7.5, fontFamily: 'Arial', background: 'transparent' }} />
+                    </td>
+                    <td style={{ border: '1px solid #000', padding: '1px 3px' }}>
+                      <input type="text" value={r.teilenummer} onChange={e => uMembran(idx, { teilenummer: e.target.value })}
+                        style={{ border: 'none', outline: 'none', width: '100%', fontSize: 7.5, fontFamily: 'Arial', background: 'transparent' }} />
+                    </td>
+                    <td className="no-print" style={{ border: '1px solid #000', padding: '1px 3px', textAlign: 'center' }}>
+                      <button onClick={() => u({ membrane: form.membrane.filter((_, i) => i !== idx) })}
+                        style={{ background: '#d9534f', color: '#fff', border: 'none', borderRadius: 3, fontSize: 8, padding: '2px 4px', cursor: 'pointer' }}>
+                        {t.btnZeileEntf}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                <tr className="no-print">
+                  <td colSpan={5} style={{ border: 'none', textAlign: 'left', padding: '2px 3px' }}>
+                    <button onClick={() => u({ membrane: [...form.membrane, emptyMembran()] })}
+                      style={{ background: '#5cb85c', color: '#fff', border: 'none', borderRadius: 3, fontSize: 8, padding: '3px 6px', cursor: 'pointer' }}>
+                      {t.btnZeileHinzu}
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div style={{ fontWeight: 'bold', fontSize: 9, padding: '3px 0', borderBottom: '2px solid #1a2744', marginTop: 10, marginBottom: 4 }}>{t.sectionSign}</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 4 }}>
+              <div>
+                <div style={{ fontSize: 8, fontWeight: 'bold', marginBottom: 2 }}>{t.sectionGerlieva}</div>
+                <div style={{ fontSize: 7.5, marginBottom: 2 }}>{t.labelDatum}: <input type="date" value={form.signatureDate} onChange={e => u({ signatureDate: e.target.value })} style={{ border: 'none', borderBottom: '1px solid #bbb', outline: 'none', fontSize: 7.5, fontFamily: 'Arial', background: 'transparent' }} /></div>
+                <div style={{ fontSize: 7.5, marginBottom: 2 }}>{t.sigPlaceholderTech}: <input type="text" value={form.nameGerlieva} onChange={e => u({ nameGerlieva: e.target.value })} style={{ border: 'none', borderBottom: '1px solid #bbb', outline: 'none', fontSize: 7.5, fontFamily: 'Arial', width: '60%', background: 'transparent' }} /></div>
+                <div style={{ fontSize: 7.5, marginBottom: 2 }}>{t.sigGerlieva}:</div>
+                <SigPreview dataUrl={form.signatures['sig-gerlieva']} onClick={() => setSigModal({ key: 'sig-gerlieva', label: t.sigGerlieva })} tapLabel={t.sigTap} />
+              </div>
+              <div>
+                <div style={{ fontSize: 8, fontWeight: 'bold', marginBottom: 2 }}>{t.labelKunde}</div>
+                <div style={{ fontSize: 7.5, marginBottom: 2 }}>&nbsp;</div>
+                <div style={{ fontSize: 7.5, marginBottom: 2 }}>{t.sigPlaceholderKunde}: <input type="text" value={form.nameKunde} onChange={e => u({ nameKunde: e.target.value })} style={{ border: 'none', borderBottom: '1px solid #bbb', outline: 'none', fontSize: 7.5, fontFamily: 'Arial', width: '60%', background: 'transparent' }} /></div>
+                <div style={{ fontSize: 7.5, marginBottom: 2 }}>{t.sigKunde}:</div>
+                <SigPreview dataUrl={form.signatures['sig-kunde']} onClick={() => setSigModal({ key: 'sig-kunde', label: t.sigKunde })} tapLabel={t.sigTap} />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {sigModal && <SignatureModal label={sigModal.label} existing={form.signatures[sigModal.key as keyof typeof form.signatures]} onClose={dataUrl => { if (dataUrl) u({ signatures: { ...form.signatures, [sigModal.key]: dataUrl } }); setSigModal(null); }} t={t} />}
+    </>
+  );
+}
