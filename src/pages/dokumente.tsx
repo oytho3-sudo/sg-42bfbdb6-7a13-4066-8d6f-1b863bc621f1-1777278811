@@ -109,10 +109,10 @@ export default function DokumentePage() {
         `)
         .order("uploaded_at", { ascending: false });
 
-      // Admin sieht: eigene Dokumente + veröffentlichte Dokumente von Technikern
+      // Admin sieht: eigene Dokumente + veröffentlichte Dokumente von Technikern + individuell freigegebene
       // Techniker sehen durch RLS: eigene Dokumente + individuell freigegebene
       if (adminMode) {
-        query = query.or(`user_id.eq.${userId},shared_with_all.eq.true`);
+        query = query.or(`user_id.eq.${userId},shared_with_all.eq.true,shared_with_users.cs.{${userId}}`);
       }
       // Für Techniker KEIN Filter - RLS regelt die Berechtigung vollständig
 

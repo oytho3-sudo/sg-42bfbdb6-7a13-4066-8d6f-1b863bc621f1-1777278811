@@ -822,6 +822,20 @@ export default function ServiceberichtPage() {
     showToast(t.toastLoaded, 'success');
   };
 
+  // Importierte Daten aus localStorage laden (z.B. von Dokumenten-Seite)
+  useEffect(() => {
+    const importedData = localStorage.getItem('importedFormData');
+    if (importedData) {
+      try {
+        const data = JSON.parse(importedData);
+        applyFormData(data);
+        localStorage.removeItem('importedFormData');
+      } catch (err) {
+        console.error('Fehler beim Laden importierter Daten:', err);
+      }
+    }
+  }, []);
+
   // ── Toolbar actions ────────────────────────────────────────────────────────
   const handleSave = () => {
     try {
