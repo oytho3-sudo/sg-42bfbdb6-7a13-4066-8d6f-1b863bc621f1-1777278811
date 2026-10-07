@@ -603,15 +603,37 @@ export default function WartungsprotokollGS() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { showToast('Bitte zuerst anmelden', 'error'); setUploading(false); return; }
+      
       const jsonData = collectFormData();
       const jsonStr = JSON.stringify(jsonData, null, 2);
       const fileName = getFileNameFn('json');
+
+      // Prüfen ob Datei bereits existiert
+      const { data: files } = await supabase.storage
+        .from(DOCUMENTS_BUCKET)
+        .list(user.id);
+      
+      const exists = files?.some(f => f.name === fileName);
+      
+      if (exists) {
+        const confirmed = window.confirm(
+          `Die Datei "${fileName}" existiert bereits.\n\nMöchten Sie sie überschreiben?`
+        );
+        if (!confirmed) {
+          setUploading(false);
+          return;
+        }
+      }
+
       const filePath = `${user.id}/${fileName}`;
       const blob = new Blob([jsonStr], { type: 'application/json' });
+      
       const { error: uploadError } = await supabase.storage.from(DOCUMENTS_BUCKET).upload(filePath, blob, { upsert: true });
       if (uploadError) throw uploadError;
+      
       const { error: dbError } = await supabase.from(DOCUMENTS_TABLE).upsert({ file_path: filePath, file_name: fileName, file_type: 'application/json', file_size: blob.size, user_id: user.id }, { onConflict: 'file_path' });
       if (dbError) throw dbError;
+      
       showToast('✅ In Storage gespeichert!', 'success');
     } catch (err: unknown) { showToast('Fehler beim Speichern: ' + (err as Error).message, 'error'); }
     finally { setUploading(false); }
