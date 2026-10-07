@@ -1,6 +1,11 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+
+// Bucket und Tabellen-Namen
+const DOCUMENTS_BUCKET = 'documents';
+const DOCUMENTS_TABLE = 'documents';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // i18n
@@ -12,7 +17,7 @@ const translations = {
   de: {
     loadJson:       '📂 JSON laden',
     savePdf:        '⬇ Als PDF speichern',
-    shareJson:      '📤 JSON teilen',
+    shareJson:      '📤 In Storage speichern',
     saveJson:       '💾 JSON speichern',
     toolbarTitle:   'Wartungsprotokoll Dosieranlagen · GERLIEVA Sprühtechnik GmbH',
     pdfAlert:       'Im Druckdialog:\n1. Drucker → "Als PDF speichern"\n2. Weitere Einstellungen → "Hintergrundgrafiken" ✓ aktivieren\n3. Ränder auf "Minimal" setzen\n→ Dann sind alle Farben im PDF enthalten.',
@@ -858,6 +863,7 @@ export default function WartungsprotokollDosieranlagen464() {
   const [form, setForm] = useState<FormData>(initialForm());
   const [sigModal, setSigModal] = useState<{ show: boolean; key: 'sig-gerlieva' | 'sig-kunde'; label: string; existing?: string }>({ show: false, key: 'sig-gerlieva', label: '' });
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' | ''; visible: boolean }>({ msg: '', type: '', visible: false });
+  const [uploading, setUploading] = useState(false);
   const [toolbarHeight, setToolbarHeight] = useState(0);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -967,6 +973,47 @@ export default function WartungsprotokollDosieranlagen464() {
     }
   };
 
+  const handleUploadToStorage = async () => {
+    setUploading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        showToast('Bitte zuerst anmelden', 'error');
+        setUploading(false);
+        return;
+      }
+
+      const jsonData = { ...form, version: 1, ts: new Date().toISOString() };
+      const jsonStr = JSON.stringify(jsonData, null, 2);
+      const fileName = buildFileName('json', form.maschineNr);
+      const filePath = `${user.id}/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from(DOCUMENTS_BUCKET)
+        .upload(filePath, new Blob([jsonStr], { type: 'application/json' }), { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { error: dbError } = await supabase
+        .from(DOCUMENTS_TABLE)
+        .upsert({
+          file_path: filePath,
+          file_name: fileName,
+          file_type: 'application/json',
+          uploaded_by: user.id,
+          metadata: { protocol_type: 'Wartungsprotokoll_Dosieranlagen_464', machine_nr: form.maschineNr || 'unbekannt' }
+        }, { onConflict: 'file_path' });
+
+      if (dbError) throw dbError;
+
+      showToast('✅ In Storage gespeichert!', 'success');
+    } catch (err: unknown) {
+      showToast('Fehler beim Speichern: ' + (err as Error).message, 'error');
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const savePdf = () => {
     alert(t.pdfAlert);
     setTimeout(() => window.print(), 300);
@@ -1003,7 +1050,7 @@ export default function WartungsprotokollDosieranlagen464() {
         <button onClick={() => window.location.href = '/'} style={{ ...tbtn, background: '#444' }}>{t.home}</button>
         <button onClick={loadJson}  style={tbtn}>{t.loadJson}</button>
         <button onClick={savePdf}   style={tbtn}>{t.savePdf}</button>
-        <button onClick={shareJson} style={tbtn}>{t.shareJson}</button>
+        <button onClick={handleUploadToStorage} disabled={uploading} style={tbtn}>{uploading ? '⏳ Lädt...' : t.shareJson}</button>
       </div>
       <input ref={fileInputRef} type="file" accept="application/json" style={{ display: 'none' }} onChange={handleFileChange} />
       <div id="page-wrapper" style={{ minHeight: '100vh', background: '#f9f9f9', padding: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, paddingTop: toolbarHeight + 12 }}>
