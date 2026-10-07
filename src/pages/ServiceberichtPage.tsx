@@ -866,8 +866,26 @@ export default function ServiceberichtPage() {
       const user = userData.user;
 
       const jsonStr  = JSON.stringify(collectFormData(), null, 2);
-      const blob     = new Blob([jsonStr], { type: 'application/json' });
       const fileName = getFileName('json');
+
+      // Prüfen ob Datei bereits existiert
+      const { data: files } = await supabase.storage
+        .from(DOCUMENTS_BUCKET)
+        .list(user.id);
+      
+      const exists = files?.some(f => f.name === fileName);
+      
+      if (exists) {
+        const confirmed = window.confirm(
+          `Die Datei "${fileName}" existiert bereits.\n\nMöchten Sie sie überschreiben?`
+        );
+        if (!confirmed) {
+          setUploading(false);
+          return;
+        }
+      }
+
+      const blob     = new Blob([jsonStr], { type: 'application/json' });
       const filePath = `${user.id}/${Date.now()}.json`;
 
       // Hochladen in Storage
