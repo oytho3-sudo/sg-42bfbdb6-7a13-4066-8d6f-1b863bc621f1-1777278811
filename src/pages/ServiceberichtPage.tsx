@@ -909,8 +909,7 @@ export default function ServiceberichtPage() {
             file_name: fileName,
             file_type: 'application/json',
             file_size: blob.size,
-            description: buildDescription(),
-            updated_at: new Date().toISOString()
+            description: buildDescription()
           })
           .eq('file_path', filePath);
         

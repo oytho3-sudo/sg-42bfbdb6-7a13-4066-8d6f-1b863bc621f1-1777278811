@@ -645,8 +645,7 @@ export default function WartungsprotokollGS() {
           .update({
             file_name: fileName,
             file_type: 'application/json',
-            file_size: blob.size,
-            updated_at: new Date().toISOString()
+            file_size: blob.size
           })
           .eq('file_path', filePath);
         
