@@ -908,7 +908,6 @@ export default function WartungsprotokollPage() {
   const [toast, setToast]       = useState<{ msg: string; type: 'success' | 'error' | ''; visible: boolean }>({ msg: '', type: '', visible: false });
   const fileInputRef  = useRef<HTMLInputElement>(null);
   const toolbarRef    = useRef<HTMLDivElement>(null);
-  const { toast } = useToast();
 
   // Importierte Daten aus localStorage laden (z.B. von Dokumenten-Seite)
   useEffect(() => {
