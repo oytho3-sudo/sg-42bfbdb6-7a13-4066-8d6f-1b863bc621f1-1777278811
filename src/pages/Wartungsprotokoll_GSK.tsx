@@ -908,6 +908,21 @@ export default function WartungsprotokollPage() {
   const [toast, setToast]       = useState<{ msg: string; type: 'success' | 'error' | ''; visible: boolean }>({ msg: '', type: '', visible: false });
   const fileInputRef  = useRef<HTMLInputElement>(null);
   const toolbarRef    = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
+
+  // Importierte Daten aus localStorage laden (z.B. von Dokumenten-Seite)
+  useEffect(() => {
+    const importedData = localStorage.getItem('importedFormData');
+    if (importedData) {
+      try {
+        const data = JSON.parse(importedData);
+        applyFormData(data);
+        localStorage.removeItem('importedFormData');
+      } catch (err) {
+        console.error('Fehler beim Laden importierter Daten:', err);
+      }
+    }
+  }, []);
 
   // Dynamisches marginTop: passt sich an wenn Toolbar durch Wrap höher wird
   useEffect(() => {
