@@ -1,6 +1,12 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+
+// Bucket und Tabellen-Namen
+const DOCUMENTS_BUCKET = 'documents';
+const DOCUMENTS_TABLE = 'documents';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // i18n
@@ -12,7 +18,7 @@ const translations = {
   de: {
     loadJson:       '📂 JSON laden',
     savePdf:        '⬇ Als PDF speichern',
-    shareJson:      '📤 JSON teilen',
+    shareJson:      '📤 In Storage speichern',
     saveJson:       '💾 JSON speichern',
     toolbarTitle:   'Wartungsprotokoll Dosieranlagen · GERLIEVA Sprühtechnik GmbH',
     pdfAlert:       'Im Druckdialog:\n1. Drucker → "Als PDF speichern"\n2. Weitere Einstellungen → "Hintergrundgrafiken" ✓ aktivieren\n3. Ränder auf "Minimal" setzen\n→ Dann sind alle Farben im PDF enthalten.',

@@ -1,6 +1,12 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+
+// Bucket und Tabellen-Namen
+const DOCUMENTS_BUCKET = 'documents';
+const DOCUMENTS_TABLE = 'documents';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // i18n
@@ -12,7 +18,7 @@ const translations = {
   de: {
     loadJson:       '📂 JSON laden',
     savePdf:        '⬇ Als PDF speichern',
-    shareJson:      '📤 JSON teilen',
+    shareJson:      '📤 In Storage speichern',
     saveJson:       '💾 JSON speichern',
     toolbarTitle:   'Wartungsprotokoll GSK · GERLIEVA Sprühtechnik GmbH',
     pdfAlert:       'Im Druckdialog:\n1. Drucker → "Als PDF speichern"\n2. Weitere Einstellungen → "Hintergrundgrafiken" ✓ aktivieren\n3. Ränder auf "Minimal" setzen\n→ Dann sind alle Farben im PDF enthalten.',
@@ -906,6 +912,7 @@ export default function WartungsprotokollPage() {
   const [form, setForm]         = useState<FormData>(initialForm);
   const [sigModal, setSigModal] = useState<{ id: 'sig-gerlieva' | 'sig-kunde'; label: string } | null>(null);
   const [toast, setToast]       = useState<{ msg: string; type: 'success' | 'error' | ''; visible: boolean }>({ msg: '', type: '', visible: false });
+  const [uploading, setUploading] = useState(false);
   const fileInputRef  = useRef<HTMLInputElement>(null);
   const toolbarRef    = useRef<HTMLDivElement>(null);
 
@@ -1038,6 +1045,47 @@ export default function WartungsprotokollPage() {
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(url), 2000);
     showToast(t.toastDownloaded, 'success');
+  };
+
+  const handleUploadToStorage = async () => {
+    setUploading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        showToast('Bitte zuerst anmelden', 'error');
+        setUploading(false);
+        return;
+      }
+
+      const jsonData = collectFormData();
+      const jsonStr = JSON.stringify(jsonData, null, 2);
+      const fileName = getFileNameFn('json');
+      const filePath = `${user.id}/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from(DOCUMENTS_BUCKET)
+        .upload(filePath, new Blob([jsonStr], { type: 'application/json' }), { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { error: dbError } = await supabase
+        .from(DOCUMENTS_TABLE)
+        .upsert({
+          file_path: filePath,
+          file_name: fileName,
+          file_type: 'application/json',
+          uploaded_by: user.id,
+          metadata: { protocol_type: 'Wartungsprotokoll_GSK', machine_nr: form.maschineNr || 'unbekannt' }
+        }, { onConflict: 'file_path' });
+
+      if (dbError) throw dbError;
+
+      showToast('✅ In Storage gespeichert!', 'success');
+    } catch (err: unknown) {
+      showToast('Fehler beim Speichern: ' + (err as Error).message, 'error');
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handlePdf = () => {
@@ -1189,7 +1237,7 @@ export default function WartungsprotokollPage() {
       <div id="toolbar" className="no-print" style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999, background: '#1a2744', padding: '6px 10px', paddingLeft: 'max(10px, env(safe-area-inset-left))', paddingRight: 'max(10px, env(safe-area-inset-right))', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', boxSizing: 'border-box' }}>
         <button onClick={() => fileInputRef.current?.click()} style={tbtn('#8e24aa')}>{t.loadJson}</button>
         <button onClick={handlePdf}   style={tbtn('#e8460a')}>{t.savePdf}</button>
-        <button onClick={handleShare} style={tbtn('#1a7a3a')}>{t.shareJson}</button>
+        <button onClick={handleUploadToStorage} disabled={uploading} style={tbtn('#1a7a3a')}>{uploading ? '⏳ Lädt...' : t.shareJson}</button>
         <button onClick={handleSave}  style={tbtn('#1a5fa8')}>{t.saveJson}</button>
         <span className="toolbar-title" style={{ color: '#a8b8d8', fontSize: 9, flexShrink: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{t.toolbarTitle}</span>
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
