@@ -894,16 +894,42 @@ export default function ServiceberichtPage() {
         .upload(filePath, blob, { upsert: true });
       if (uploadError) throw uploadError;
 
-      // Eintrag in Tabelle
-      const { error: insertError } = await supabase.from(DOCUMENTS_TABLE).upsert({
-        user_id: user.id,
-        file_name: fileName,
-        file_path: filePath,
-        file_size: blob.size,
-        file_type: 'application/json',
-        description: buildDescription(),
-      }, { onConflict: 'file_path' });
-      if (insertError) throw insertError;
+      // Prüfen ob DB-Eintrag existiert
+      const { data: existingDoc } = await supabase
+        .from(DOCUMENTS_TABLE)
+        .select('id')
+        .eq('file_path', filePath)
+        .maybeSingle();
+
+      if (existingDoc) {
+        // UPDATE
+        const { error: updateError } = await supabase
+          .from(DOCUMENTS_TABLE)
+          .update({
+            file_name: fileName,
+            file_type: 'application/json',
+            file_size: blob.size,
+            description: buildDescription(),
+            updated_at: new Date().toISOString()
+          })
+          .eq('file_path', filePath);
+        
+        if (updateError) throw updateError;
+      } else {
+        // INSERT
+        const { error: insertError } = await supabase
+          .from(DOCUMENTS_TABLE)
+          .insert({
+            user_id: user.id,
+            file_name: fileName,
+            file_path: filePath,
+            file_size: blob.size,
+            file_type: 'application/json',
+            description: buildDescription()
+          });
+        
+        if (insertError) throw insertError;
+      }
 
       showToast(t.toastUploaded, 'success');
     } catch (err: unknown) {
