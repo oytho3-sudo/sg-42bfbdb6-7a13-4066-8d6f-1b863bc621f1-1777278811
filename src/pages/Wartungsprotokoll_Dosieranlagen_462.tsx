@@ -938,3 +938,66 @@ const printStyles = `
 // Logo
 // ═══════════════════════════════════════════════════════════════════════════════
 
+const [sigModal, setSigModal] = useState<{ show: boolean; key: 'sig-gerlieva' | 'sig-kunde'; label: string; existing?: string }>({ show: false, key: 'sig-gerlieva', label: '' });
+const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' | ''; visible: boolean }>({ msg: '', type: '', visible: false });
+const [uploading, setUploading] = useState(false);
+const [toolbarHeight, setToolbarHeight] = useState(0);
+const fileInputRef = useRef<HTMLInputElement>(null);
+
+const shareJson = async () => {
+  const json = JSON.stringify({ ...form, version: 1, ts: new Date().toISOString() }, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const file = new File([blob], buildFileName('json', form.maschineNr), { type: 'application/json' });
+  if (navigator.share && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: t.labelWartungShare });
+      showToast(t.toastSaved);
+    } catch (err: unknown) {
+      const error = err as Error;
+      if (error.name !== 'AbortError') showToast(`${t.toastError}${error.message}`, 'error');
+    }
+  } else {
+    saveJson();
+  }
+};
+
+const handleUploadToStorage = async () => {
+  setUploading(true);
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      showToast('Bitte zuerst anmelden', 'error');
+      setUploading(false);
+      return;
+    }
+
+    const jsonData = { ...form, version: 1, ts: new Date().toISOString() };
+    const jsonStr = JSON.stringify(jsonData, null, 2);
+    const fileName = buildFileName('json', form.maschineNr);
+    const filePath = `${user.id}/${fileName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from(DOCUMENTS_BUCKET)
+      .upload(filePath, new Blob([jsonStr], { type: 'application/json' }), { upsert: true });
+
+    if (uploadError) throw uploadError;
+
+    const { error: dbError } = await supabase
+      .from(DOCUMENTS_TABLE)
+      .upsert({
+        file_path: filePath,
+        file_name: fileName,
+        file_type: 'application/json',
+        uploaded_by: user.id,
+        metadata: { protocol_type: 'Wartungsprotokoll_Dosieranlagen_462', machine_nr: form.maschineNr || 'unbekannt' }
+      }, { onConflict: 'file_path' });
+
+    if (dbError) throw dbError;
+
+    showToast('✅ In Storage gespeichert!', 'success');
+  } catch (err: unknown) {
+    showToast('Fehler beim Speichern: ' + (err as Error).message, 'error');
+  } finally {
+    setUploading(false);
+  }
+};
