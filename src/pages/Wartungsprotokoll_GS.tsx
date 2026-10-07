@@ -923,4 +923,12 @@ const LOGO_B64 = '';
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export default function WartungsprotokollGS() {
+  const { error: dbError } = await supabase
+    .from(DOCUMENTS_TABLE)
+    .upsert({
+      file_path: filePath,
+      file_name: fileName,
+      file_type: 'application/json',
+      user_id: user.id
+    }, { onConflict: 'file_path' });
 }
