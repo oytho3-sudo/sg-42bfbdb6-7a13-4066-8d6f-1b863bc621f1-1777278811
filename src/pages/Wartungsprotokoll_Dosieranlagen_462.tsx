@@ -1030,6 +1030,24 @@ export default function WartungsprotokollDosieranlagen462() {
       const jsonData = collectFormData();
       const jsonStr = JSON.stringify(jsonData, null, 2);
       const fileName = buildFileName('json', form.maschineNr);
+
+      // Prüfen ob Datei bereits existiert
+      const { data: files } = await supabase.storage
+        .from(DOCUMENTS_BUCKET)
+        .list(user.id);
+      
+      const exists = files?.some(f => f.name === fileName);
+      
+      if (exists) {
+        const confirmed = window.confirm(
+          `Die Datei "${fileName}" existiert bereits.\n\nMöchten Sie sie überschreiben?`
+        );
+        if (!confirmed) {
+          setUploading(false);
+          return;
+        }
+      }
+
       const filePath = `${user.id}/${fileName}`;
       const blob = new Blob([jsonStr], { type: 'application/json' });
 
