@@ -77,7 +77,6 @@ const translations = {
     thBeschreibung: 'Beschreibung',
     thTeilenummer:  'Teilenummer',
     thStk:          'Stk.',
-    // Aktueller Zustand
     istZustandTitle:    'Aktueller Zustand',
     labelMengeHub:      'Menge pro Hub',
     labelMengeHubUnit:  'ml',
@@ -85,29 +84,24 @@ const translations = {
     unitBar:            'bar',
     unitLiter:          'l',
     labelGewechselt:    'gewechselt',
-    // Divider
     divAllgemein:        '▶  DOSIERANLAGE',
     divAktZustand:       '▶  AKTUELLER ZUSTAND',
     divDosierpumpe:      '▶  DOSIERPUMPE',
     divFassdeckel:       '▶  FASSDECKEL / SAUGLANZE',
     divWasserversorgung: '▶  WASSERVERSORGUNG',
-    // Prüfpunkte Dosieranlage 464
     p01: 'Funktion in Automatik: Funktion',
     p02: 'Funktionen im Handbetrieb: Wasserzulauf / Dosierpumpe',
     p06: 'Pufferbehaelter: Zustand und Funktion der Fuellstandschalter',
     p07: 'Membranpumpe: Drehmoment Schrauben, Funktion, Dichtigkeit',
     p09: 'Mediumleitungen: Kontrolldurchgang Schlaeuche, Verschraubungen',
     p10: 'Druckluft: Dichtigkeit, Schlaeuche, Armaturen, Filter, Oeler',
-    // Dosierpumpe
     p12: 'Funktion',
     p13: 'Dichtigkeit',
     p14: 'ermittelte Menge',
-    // Fassdeckel / Sauglanze
     p15: 'Saugleitung',
     p16: 'Fasswechsel',
     p17: 'Fuellstandschalter',
     p18: 'Rückschlagventil',
-    // Wasserversorgung
     p19: 'Druck',
     p20: 'Dichtigkeit',
     p21: 'Filtereinsatz',
@@ -183,7 +177,6 @@ const translations = {
     thBeschreibung: 'Description',
     thTeilenummer:  'Part Number',
     thStk:          'Qty.',
-    // Current condition
     istZustandTitle:    'Current condition',
     labelMengeHub:      'Volume per stroke',
     labelMengeHubUnit:  'ml',
@@ -196,23 +189,19 @@ const translations = {
     divDosierpumpe:      '▶  DOSING PUMP',
     divFassdeckel:       '▶  DRUM LID / SUCTION LANCE',
     divWasserversorgung: '▶  WATER SUPPLY',
-    // Checkpoints dosing unit 464
     p01: 'Function in automatic mode: function',
     p02: 'Functions in manual mode: water feed / dosing pump',
     p06: 'Buffer tank: status and function of the level switches',
     p07: 'Diaphragm pump: torque screws, function, tightness',
     p09: 'Medium lines: control passage hoses, fittings',
     p10: 'Compressed air: tightness, hoses, fittings, filters, oilers',
-    // Dosing pump
     p12: 'Function',
     p13: 'Tightness',
     p14: 'measured quantity',
-    // Drum lid / suction lance
     p15: 'Suction line',
     p16: 'Drum change',
     p17: 'Level switch',
     p18: 'Check valve',
-    // Water supply
     p19: 'Pressure',
     p20: 'Tightness',
     p21: 'Filter cartridge',
@@ -288,7 +277,6 @@ const translations = {
     thBeschreibung: 'Description',
     thTeilenummer:  'N° de pièce',
     thStk:          'Qté.',
-    // État actuel
     istZustandTitle:    'État actuel',
     labelMengeHub:      'Volume par course',
     labelMengeHubUnit:  'ml',
@@ -301,23 +289,19 @@ const translations = {
     divDosierpumpe:      '▶  POMPE DOSEUSE',
     divFassdeckel:       "▶  COUVERCLE DE FÛT / LANCE D'ASPIRATION",
     divWasserversorgung: '▶  ALIMENTATION EN EAU',
-    // Points de contrôle installation de dosage 464
     p01: 'Fonction en mode automatique : fonction',
     p02: "Fonctions en mode manuel : arrivée d'eau / pompe doseuse",
     p06: 'Réservoir tampon : état et fonction des interrupteurs de niveau',
     p07: 'Pompe à membrane : couple des vis, fonction, étanchéité',
     p09: 'Conduites de produit : contrôle du passage, flexibles, raccords',
     p10: 'Air comprimé : étanchéité, flexibles, raccords, filtres, huileurs',
-    // Pompe doseuse
     p12: 'Fonction',
     p13: 'Étanchéité',
     p14: 'quantité mesurée',
-    // Couvercle de fût / lance d'aspiration
     p15: "Conduite d'aspiration",
     p16: 'Changement de fût',
     p17: 'Interrupteur de niveau',
     p18: 'Vanne anti-retour',
-    // Alimentation en eau
     p19: 'Pression',
     p20: 'Étanchéité',
     p21: 'Cartouche filtrante',
@@ -399,7 +383,6 @@ interface FormData {
 // Zeilen-Daten
 // ═══════════════════════════════════════════════════════════════════════════════
 
-// Seite 1: ALLE Prüfpunkte Dosieranlage 464 (4 Bereiche: Dosieranlage, Dosierpumpe, Fassdeckel/Sauglanze, Wasserversorgung)
 const alleZeilen: Zeile[] = [
   { divider: 'divAllgemein' },
   { textKey: 'p01', bem: '' },
@@ -426,10 +409,8 @@ const alleZeilen: Zeile[] = [
   { textKey: 'p23', bem: '' },
 ];
 
-// Seite 2: leer (Fuß + Unterschriften werden separat gerendert)
 const seite2Zeilen: Zeile[] = [];
 
-// Gesamtanzahl Zeilen für zeilenState-Array:
 const TOTAL_ZEILEN_COUNT = alleZeilen.length;
 
 const emptyTag      = (): MontagTag => ({ datum: '', vonZeit: '', bisZeit: '', pauseMin: '', tagTyp: '' });
@@ -473,7 +454,6 @@ function calcNettoMin(tag: MontagTag): number {
   return diff > 0 ? diff - pause : 0;
 }
 
-// Nachtstunden: Minuten vor 06:00 und nach 20:00 (ohne Pause-Anteil)
 function calcNachtMin(tag: MontagTag): number {
   if (!tag.vonZeit || !tag.bisZeit) return 0;
   const [vh, vm] = tag.vonZeit.split(':').map(Number);
@@ -481,11 +461,9 @@ function calcNachtMin(tag: MontagTag): number {
   const von  = vh * 60 + vm;
   const bis  = bh * 60 + bm;
   if (bis <= von) return 0;
-  const NACHT_START = 20 * 60; // 20:00
-  const NACHT_ENDE  =  6 * 60; //  6:00
-  // Minuten vor 06:00
+  const NACHT_START = 20 * 60;
+  const NACHT_ENDE  =  6 * 60;
   const vorSechs = von < NACHT_ENDE ? Math.min(bis, NACHT_ENDE) - von : 0;
-  // Minuten nach 20:00
   const nachZwanzig = bis > NACHT_START ? bis - Math.max(von, NACHT_START) : 0;
   return Math.max(0, vorSechs + nachZwanzig);
 }
@@ -615,7 +593,6 @@ function SignatureModal({ label, existing, onClose, t }: SigModalProps) {
       const dpr = window.devicePixelRatio || 1;
       const w = Math.max(container.clientWidth - 16, 100);
       const h = Math.max(container.clientHeight - 16, 80);
-      // Aktuellen Inhalt retten bevor Canvas-Größe geändert wird
       const tmp = document.createElement('canvas');
       tmp.width = canvas.width; tmp.height = canvas.height;
       tmp.getContext('2d')!.drawImage(canvas, 0, 0);
@@ -624,7 +601,6 @@ function SignatureModal({ label, existing, onClose, t }: SigModalProps) {
       const ctx = canvas.getContext('2d')!;
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.scale(dpr, dpr);
-      // Alten Inhalt maßstabsgerecht zurückzeichnen
       const oldW = tmp.width / dpr, oldH = tmp.height / dpr;
       ctx.drawImage(tmp, 0, 0, oldW, oldH, 0, 0, w, h);
     };
@@ -647,7 +623,6 @@ function SignatureModal({ label, existing, onClose, t }: SigModalProps) {
 
   const getPos = (e: React.MouseEvent | React.TouchEvent, c: HTMLCanvasElement) => {
     const r = c.getBoundingClientRect(), src = 'touches' in e ? e.touches[0] : e;
-    // Skalierung berücksichtigen: canvas kann via CSS kleiner dargestellt sein als intern
     const scaleX = c.width  / (window.devicePixelRatio || 1) / r.width;
     const scaleY = c.height / (window.devicePixelRatio || 1) / r.height;
     return { x: (src.clientX - r.left) * scaleX, y: (src.clientY - r.top) * scaleY };
@@ -686,7 +661,6 @@ function SigPreview({ dataUrl, onClick, tapLabel }: { dataUrl?: string; onClick:
   const redraw = useCallback(() => {
     const canvas = canvasRef.current; if (!canvas) return;
     const dpr = window.devicePixelRatio || 1;
-    // parentElement-Breite als zuverlässigere Quelle – getBoundingClientRect kann 0 liefern wenn noch nicht gerendert
     const parent = canvas.parentElement;
     const w = (parent ? parent.clientWidth : canvas.offsetWidth) || 300;
     const h = (parent ? parent.clientHeight : canvas.offsetHeight) || 75;
@@ -703,7 +677,6 @@ function SigPreview({ dataUrl, onClick, tapLabel }: { dataUrl?: string; onClick:
   }, [dataUrl, tapLabel]);
 
   useEffect(() => {
-    // Mehrfach versuchen – Layout kann beim ersten Render noch nicht stabil sein
     const t1 = setTimeout(redraw, 50);
     const t2 = setTimeout(redraw, 300);
     const observer = new ResizeObserver(() => redraw());
@@ -823,7 +796,6 @@ function PruefZeile({ zeile, state, onChange, rowIndex, t }: {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const printStyles = `
-  /* ── Globaler Reset ── */
   html {
     overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
@@ -850,7 +822,6 @@ const printStyles = `
     .sig-print-empty { display: block !important; width: 100% !important; height: 60px !important; border: 1px solid #000; background: white; }
   }
 
-  /* ── Schwarze Felder verhindern (Dark Mode / Android Chrome) ── */
   input[type="date"],
   input[type="time"],
   input[type="month"] {
@@ -863,14 +834,12 @@ const printStyles = `
     color: #000 !important;
   }
 
-  /* ── Kleine Screens (Handy Hochformat) ── */
   @media screen and (max-width: 600px) {
     .toolbar-title { display: none; }
     #page-wrapper  { padding: 4px !important; }
     .a4            { padding: 4mm 4mm !important; }
   }
 
-  /* ── Handy Querformat ── */
   @media screen and (max-width: 900px) and (orientation: landscape) {
     .toolbar-title { display: none; }
     #page-wrapper  { padding: 4px !important; padding-left: max(4px, env(safe-area-inset-left)) !important; padding-right: max(4px, env(safe-area-inset-right)) !important; }
@@ -879,6 +848,283 @@ const printStyles = `
 `;
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// Logo
+// Main Component
 // ═══════════════════════════════════════════════════════════════════════════════
 
+export default function WartungsprotokollDosieranlagen464() {
+  const [lang, setLang] = useState<Lang>('de');
+  const t: T = translations[lang];
+
+  const [form, setForm] = useState<FormData>(initialForm());
+  const [sigModal, setSigModal] = useState<{ show: boolean; key: 'sig-gerlieva' | 'sig-kunde'; label: string; existing?: string }>({ show: false, key: 'sig-gerlieva', label: '' });
+  const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' | ''; visible: boolean }>({ msg: '', type: '', visible: false });
+  const [toolbarHeight, setToolbarHeight] = useState(0);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const toolbarRef   = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const importedData = localStorage.getItem('importedFormData');
+    if (importedData) {
+      try {
+        const data = JSON.parse(importedData);
+        applyFormData(data);
+        localStorage.removeItem('importedFormData');
+      } catch (err) {
+        console.error('Fehler beim Laden importierter Daten:', err);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    const measure = () => { if (toolbarRef.current) setToolbarHeight(toolbarRef.current.offsetHeight); };
+    measure();
+    const observer = new ResizeObserver(() => measure());
+    if (toolbarRef.current) observer.observe(toolbarRef.current);
+    window.addEventListener('resize', measure);
+    return () => { observer.disconnect(); window.removeEventListener('resize', measure); };
+  }, []);
+
+  const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
+    setToast({ msg, type, visible: true });
+    setTimeout(() => setToast(prev => ({ ...prev, visible: false })), 2500);
+  };
+
+  const applyFormData = (data: Partial<FormData>) => {
+    setForm(f => {
+      const newState = {
+        ...f,
+        version:       data.version        ?? f.version,
+        kunde:         data.kunde          ?? f.kunde,
+        arbeitsplatz:  data.arbeitsplatz   ?? f.arbeitsplatz,
+        dgm:           data.dgm            ?? f.dgm,
+        position:      data.position       ?? f.position,
+        maschinTyp:    data.maschinTyp     ?? f.maschinTyp,
+        maschineNr:    data.maschineNr     ?? f.maschineNr,
+        kom:           data.kom            ?? f.kom,
+        baujahr:       data.baujahr        ?? f.baujahr,
+        wartungDatum:  data.wartungDatum   ?? f.wartungDatum,
+        nameGerlieva:  data.nameGerlieva   ?? f.nameGerlieva,
+        nameKunde:     data.nameKunde      ?? f.nameKunde,
+        signatureDate: data.signatureDate  ?? f.signatureDate,
+        bemerkungen:   data.bemerkungen    ?? f.bemerkungen,
+        massnahmen:    data.massnahmen     ?? f.massnahmen,
+        signatures:    data.signatures     ?? f.signatures,
+        monteure:      data.monteure       ?? f.monteure,
+        zeilenState:   data.zeilenState    ?? f.zeilenState,
+        material:      data.material       ?? f.material,
+        istZustand:    data.istZustand     ?? f.istZustand,
+      };
+      return newState;
+    });
+  };
+
+  const saveJson = () => {
+    const json = JSON.stringify({ ...form, version: 1, ts: new Date().toISOString() }, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = buildFileName('json', form.maschineNr);
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast(t.toastDownloaded);
+  };
+
+  const loadJson = () => fileInputRef.current?.click();
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const data = JSON.parse(reader.result as string) as FormData;
+        applyFormData(data);
+        showToast(t.toastLoaded);
+      } catch {
+        showToast(t.toastInvalid, 'error');
+      }
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    };
+    reader.onerror = () => showToast(`${t.toastLoadError}${reader.error?.message}`, 'error');
+    reader.readAsText(file);
+  };
+
+  const shareJson = async () => {
+    const json = JSON.stringify({ ...form, version: 1, ts: new Date().toISOString() }, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const file = new File([blob], buildFileName('json', form.maschineNr), { type: 'application/json' });
+    if (navigator.share && navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file], title: t.labelWartungShare });
+        showToast(t.toastSaved);
+      } catch (err: unknown) {
+        const error = err as Error;
+        if (error.name !== 'AbortError') showToast(`${t.toastError}${error.message}`, 'error');
+      }
+    } else {
+      saveJson();
+    }
+  };
+
+  const savePdf = () => {
+    alert(t.pdfAlert);
+    setTimeout(() => window.print(), 300);
+  };
+
+  const openSigModal = (key: 'sig-gerlieva' | 'sig-kunde', label: string) => {
+    setSigModal({ show: true, key, label, existing: form.signatures[key] });
+  };
+
+  const closeSigModal = (dataUrl?: string) => {
+    if (dataUrl && sigModal.key) {
+      setForm(f => ({ ...f, signatures: { ...f.signatures, [sigModal.key]: dataUrl }, signatureDate: new Date().toLocaleDateString('de-DE') }));
+    }
+    setSigModal({ show: false, key: 'sig-gerlieva', label: '' });
+  };
+
+  const deleteSig = (key: 'sig-gerlieva' | 'sig-kunde') => {
+    setForm(f => {
+      const newSigs = { ...f.signatures };
+      delete newSigs[key];
+      return { ...f, signatures: newSigs };
+    });
+  };
+
+  const tbtn = { background: '#3b5c8f', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: 4, fontSize: 13, cursor: 'pointer', fontFamily: 'Arial, sans-serif', whiteSpace: 'nowrap' as const, display: 'inline-flex', alignItems: 'center', gap: 6 };
+  const inp  = { fontFamily: 'Arial', fontSize: 11, padding: '2px 4px', border: '1px solid #aaa', borderRadius: 3 };
+
+  return (
+    <>
+      <style>{printStyles}</style>
+      <div className="no-print" ref={toolbarRef} style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999, background: '#1a2744', color: '#fff', padding: '6px 12px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, boxShadow: '0 2px 8px rgba(0,0,0,0.2)' }}>
+        <span className="toolbar-title" style={{ flex: '1 1 auto', fontWeight: 'bold', fontSize: 12, minWidth: 150 }}>{t.toolbarTitle}</span>
+        <LangSwitcher current={lang} onChange={setLang} />
+        <button onClick={() => window.location.href = '/'} style={{ ...tbtn, background: '#444' }}>{t.home}</button>
+        <button onClick={loadJson}  style={tbtn}>{t.loadJson}</button>
+        <button onClick={savePdf}   style={tbtn}>{t.savePdf}</button>
+        <button onClick={shareJson} style={tbtn}>{t.shareJson}</button>
+      </div>
+      <input ref={fileInputRef} type="file" accept="application/json" style={{ display: 'none' }} onChange={handleFileChange} />
+      <div id="page-wrapper" style={{ minHeight: '100vh', background: '#f9f9f9', padding: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, paddingTop: toolbarHeight + 12 }}>
+        <div className="a4" style={{ width: 794, background: 'white', padding: '16mm', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontFamily: 'Arial, sans-serif', fontSize: 11, lineHeight: 1.4, color: '#000' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 8 }}>
+            <tbody>
+              <tr>
+                <td style={{ textAlign: 'left', verticalAlign: 'middle' }}>
+                  <div style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 2, color: '#1a2744' }}>{t.docTitle}</div>
+                  <div style={{ fontSize: 9, color: '#555' }}>Dosieranlagen 464</div>
+                </td>
+                <td style={{ textAlign: 'right', verticalAlign: 'middle' }}>
+                  <div style={{ fontWeight: 'bold', fontSize: 10, color: '#1a2744' }}>GERLIEVA Sprühtechnik GmbH</div>
+                  <div style={{ fontSize: 8.5, color: '#555', lineHeight: 1.3 }}>
+                    Gottfried-Schenker-Str. 1–3<br />
+                    76646 Bruchsal<br />
+                    +49 7251 9626-0
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <div style={{ borderTop: '2px solid #1a2744', marginBottom: 8 }} />
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 9.5, marginBottom: 8 }}>
+            <tbody>
+              <tr>
+                <td style={{ width: '20%', fontWeight: 'bold', padding: '2px 4px' }}>{t.labelKunde}:</td>
+                <td style={{ width: '30%', padding: '2px 0' }}><input type="text" value={form.kunde} onChange={e => setForm(f => ({ ...f, kunde: e.target.value }))} style={{ ...inp, width: '100%' }} /></td>
+                <td style={{ width: '20%', fontWeight: 'bold', padding: '2px 4px', textAlign: 'right' }}>{t.labelMaschinTyp}:</td>
+                <td style={{ width: '30%', padding: '2px 0' }}><input type="text" value={form.maschinTyp} onChange={e => setForm(f => ({ ...f, maschinTyp: e.target.value }))} style={{ ...inp, width: '100%' }} /></td>
+              </tr>
+              <tr>
+                <td style={{ fontWeight: 'bold', padding: '2px 4px' }}>{t.labelArbeitsplatz}:</td>
+                <td style={{ padding: '2px 0' }}><input type="text" value={form.arbeitsplatz} onChange={e => setForm(f => ({ ...f, arbeitsplatz: e.target.value }))} style={{ ...inp, width: '100%' }} /></td>
+                <td style={{ fontWeight: 'bold', padding: '2px 4px', textAlign: 'right' }}>{t.labelMaschineNr}:</td>
+                <td style={{ padding: '2px 0' }}><input type="text" value={form.maschineNr} onChange={e => setForm(f => ({ ...f, maschineNr: e.target.value }))} style={{ ...inp, width: '100%' }} /></td>
+              </tr>
+              <tr>
+                <td style={{ fontWeight: 'bold', padding: '2px 4px' }}>{t.labelDgm}:</td>
+                <td style={{ padding: '2px 0' }}><input type="text" value={form.dgm} onChange={e => setForm(f => ({ ...f, dgm: e.target.value }))} style={{ ...inp, width: '100%' }} /></td>
+                <td style={{ fontWeight: 'bold', padding: '2px 4px', textAlign: 'right' }}>{t.labelKom}:</td>
+                <td style={{ padding: '2px 0' }}><input type="text" value={form.kom} onChange={e => setForm(f => ({ ...f, kom: e.target.value }))} style={{ ...inp, width: '100%' }} /></td>
+              </tr>
+              <tr>
+                <td style={{ fontWeight: 'bold', padding: '2px 4px' }}>{t.labelPosition}:</td>
+                <td style={{ padding: '2px 0' }}><input type="text" value={form.position} onChange={e => setForm(f => ({ ...f, position: e.target.value }))} style={{ ...inp, width: '100%' }} /></td>
+                <td style={{ fontWeight: 'bold', padding: '2px 4px', textAlign: 'right' }}>{t.labelBaujahr}:</td>
+                <td style={{ padding: '2px 0' }}><input type="text" value={form.baujahr} onChange={e => setForm(f => ({ ...f, baujahr: e.target.value }))} style={{ ...inp, width: '100%' }} /></td>
+              </tr>
+            </tbody>
+          </table>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 9.5, marginBottom: 10 }}>
+            <thead>
+              <tr style={{ background: '#cfdff5' }}>
+                <th style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'left', fontSize: 8.5 }}>{t.colPruefpunkt}</th>
+                <th style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'center', fontSize: 8.5, width: 20 }}>{t.colOk}</th>
+                <th style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'left', fontSize: 8.5, width: '16%' }}>{t.colName}</th>
+                <th style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'left', fontSize: 8.5, width: '24%' }}>{t.colBemerkung}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {alleZeilen.map((zeile, idx) => (
+                <PruefZeile key={idx} zeile={zeile} state={form.zeilenState[idx]} onChange={upd => setForm(f => { const zs = [...f.zeilenState]; zs[idx] = { ...zs[idx], ...upd }; return { ...f, zeilenState: zs }; })} rowIndex={idx} t={t} />
+              ))}
+            </tbody>
+          </table>
+          <div style={{ marginTop: 12, marginBottom: 8, fontWeight: 'bold', fontSize: 10, borderTop: '1px solid #999', paddingTop: 6 }}>{t.sectionMaterial}</div>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 8.5 }}>
+            <thead>
+              <tr style={{ background: '#e9ecef' }}>
+                <th style={{ border: '1px solid #000', padding: '2px', textAlign: 'center', width: '6%' }}>{t.thPos}</th>
+                <th style={{ border: '1px solid #000', padding: '2px', textAlign: 'left' }}>{t.thBeschreibung}</th>
+                <th style={{ border: '1px solid #000', padding: '2px', textAlign: 'left', width: '22%' }}>{t.thTeilenummer}</th>
+                <th style={{ border: '1px solid #000', padding: '2px', textAlign: 'center', width: '8%' }}>{t.thStk}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {form.material.map((row, idx) => (
+                <tr key={idx}>
+                  <td style={{ border: '1px solid #000', padding: '1px 2px', textAlign: 'center' }}><input type="text" value={row.pos} onChange={e => setForm(f => { const mat = [...f.material]; mat[idx].pos = e.target.value; return { ...f, material: mat }; })} style={{ border: 'none', outline: 'none', width: '100%', fontSize: 8, textAlign: 'center', fontFamily: 'Arial', background: 'transparent' }} /></td>
+                  <td style={{ border: '1px solid #000', padding: '1px 2px' }}><input type="text" value={row.beschreibung} onChange={e => setForm(f => { const mat = [...f.material]; mat[idx].beschreibung = e.target.value; return { ...f, material: mat }; })} style={{ border: 'none', outline: 'none', width: '100%', fontSize: 8, fontFamily: 'Arial', background: 'transparent' }} /></td>
+                  <td style={{ border: '1px solid #000', padding: '1px 2px' }}><input type="text" value={row.teilenummer} onChange={e => setForm(f => { const mat = [...f.material]; mat[idx].teilenummer = e.target.value; return { ...f, material: mat }; })} style={{ border: 'none', outline: 'none', width: '100%', fontSize: 8, fontFamily: 'Arial', background: 'transparent' }} /></td>
+                  <td style={{ border: '1px solid #000', padding: '1px 2px', textAlign: 'center' }}><input type="text" value={row.stk} onChange={e => setForm(f => { const mat = [...f.material]; mat[idx].stk = e.target.value; return { ...f, material: mat }; })} style={{ border: 'none', outline: 'none', width: '100%', fontSize: 8, textAlign: 'center', fontFamily: 'Arial', background: 'transparent' }} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="a4" style={{ width: 794, background: 'white', padding: '16mm', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontFamily: 'Arial, sans-serif', fontSize: 10, lineHeight: 1.4, color: '#000', paddingTop: 6 }}>
+          <div style={{ fontSize: 12, fontWeight: 'bold', marginBottom: 8, color: '#1a2744' }}>{t.sectionSign}</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 8 }}>
+            <div>
+              <div style={{ fontSize: 9, fontWeight: 'bold', marginBottom: 4 }}>{t.sigGerlieva}</div>
+              <SigPreview dataUrl={form.signatures['sig-gerlieva']} onClick={() => openSigModal('sig-gerlieva', t.sigGerlieva)} tapLabel={t.sigTap} />
+              {form.signatures['sig-gerlieva'] && (
+                <div style={{ marginTop: 4 }}>
+                  <input type="text" placeholder={t.sigPlaceholderTech} value={form.nameGerlieva} onChange={e => setForm(f => ({ ...f, nameGerlieva: e.target.value }))} style={{ ...inp, width: 'calc(100% - 40px)', fontSize: 9 }} />
+                  <button onClick={() => deleteSig('sig-gerlieva')} style={{ marginLeft: 4, padding: '2px 6px', fontSize: 9, background: '#e74c3c', color: '#fff', border: 'none', borderRadius: 3, cursor: 'pointer' }}>{t.sigDelete}</button>
+                </div>
+              )}
+            </div>
+            <div>
+              <div style={{ fontSize: 9, fontWeight: 'bold', marginBottom: 4 }}>{t.sigKunde}</div>
+              <SigPreview dataUrl={form.signatures['sig-kunde']} onClick={() => openSigModal('sig-kunde', t.sigKunde)} tapLabel={t.sigTap} />
+              {form.signatures['sig-kunde'] && (
+                <div style={{ marginTop: 4 }}>
+                  <input type="text" placeholder={t.sigPlaceholderKunde} value={form.nameKunde} onChange={e => setForm(f => ({ ...f, nameKunde: e.target.value }))} style={{ ...inp, width: 'calc(100% - 40px)', fontSize: 9 }} />
+                  <button onClick={() => deleteSig('sig-kunde')} style={{ marginLeft: 4, padding: '2px 6px', fontSize: 9, background: '#e74c3c', color: '#fff', border: 'none', borderRadius: 3, cursor: 'pointer' }}>{t.sigDelete}</button>
+                </div>
+              )}
+            </div>
+          </div>
+          {form.signatureDate && (
+            <div style={{ fontSize: 9, color: '#666', marginTop: 6 }}>
+              {t.labelDatum} {form.signatureDate}
+            </div>
+          )}
+        </div>
+      </div>
+      {sigModal.show && <SignatureModal label={sigModal.label} existing={sigModal.existing} onClose={closeSigModal} t={t} />}
+      <Toast msg={toast.msg} type={toast.type} visible={toast.visible} />
+    </>
+  );
+}
