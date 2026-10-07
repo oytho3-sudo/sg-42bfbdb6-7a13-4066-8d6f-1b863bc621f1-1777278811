@@ -987,10 +987,11 @@ export default function WartungsprotokollDosieranlagen464() {
       const jsonStr = JSON.stringify(jsonData, null, 2);
       const fileName = buildFileName('json', form.maschineNr);
       const filePath = `${user.id}/${fileName}`;
+      const blob = new Blob([jsonStr], { type: 'application/json' });
 
       const { error: uploadError } = await supabase.storage
         .from(DOCUMENTS_BUCKET)
-        .upload(filePath, new Blob([jsonStr], { type: 'application/json' }), { upsert: true });
+        .upload(filePath, blob, { upsert: true });
 
       if (uploadError) throw uploadError;
 
@@ -1000,6 +1001,7 @@ export default function WartungsprotokollDosieranlagen464() {
           file_path: filePath,
           file_name: fileName,
           file_type: 'application/json',
+          file_size: blob.size,
           user_id: user.id
         }, { onConflict: 'file_path' });
 
