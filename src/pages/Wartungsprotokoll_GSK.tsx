@@ -1074,8 +1074,7 @@ export default function WartungsprotokollPage() {
           file_path: filePath,
           file_name: fileName,
           file_type: 'application/json',
-          user_id: user.id,
-          metadata: { protocol_type: 'Wartungsprotokoll_GSK', machine_nr: form.maschineNr || 'unbekannt' }
+          user_id: user.id
         }, { onConflict: 'file_path' });
 
       if (dbError) throw dbError;
