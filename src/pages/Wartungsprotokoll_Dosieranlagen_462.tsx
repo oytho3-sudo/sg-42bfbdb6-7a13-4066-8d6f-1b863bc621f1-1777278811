@@ -944,12 +944,5 @@ const LOGO_B64 = '';
 // Haupt-Komponente
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const { error: dbError } = await supabase
-  .from(DOCUMENTS_TABLE)
-  .upsert({
-    file_path: filePath,
-    file_name: fileName,
-    file_type: 'application/json',
-    user_id: user.id,
-    metadata: { protocol_type: 'Wartungsprotokoll_Dosieranlagen_462', machine_nr: form.maschineNr || 'unbekannt' }
-  }, { onConflict: 'file_path' });
+export default function WartungsprotokollDosieranlagen462() {
+}
