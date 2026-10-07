@@ -631,8 +631,40 @@ export default function WartungsprotokollGS() {
       const { error: uploadError } = await supabase.storage.from(DOCUMENTS_BUCKET).upload(filePath, blob, { upsert: true });
       if (uploadError) throw uploadError;
       
-      const { error: dbError } = await supabase.from(DOCUMENTS_TABLE).upsert({ file_path: filePath, file_name: fileName, file_type: 'application/json', file_size: blob.size, user_id: user.id }, { onConflict: 'file_path' });
-      if (dbError) throw dbError;
+      // Prüfen ob DB-Eintrag existiert
+      const { data: existingDoc } = await supabase
+        .from(DOCUMENTS_TABLE)
+        .select('id')
+        .eq('file_path', filePath)
+        .maybeSingle();
+
+      if (existingDoc) {
+        // UPDATE
+        const { error: updateError } = await supabase
+          .from(DOCUMENTS_TABLE)
+          .update({
+            file_name: fileName,
+            file_type: 'application/json',
+            file_size: blob.size,
+            updated_at: new Date().toISOString()
+          })
+          .eq('file_path', filePath);
+        
+        if (updateError) throw updateError;
+      } else {
+        // INSERT
+        const { error: insertError } = await supabase
+          .from(DOCUMENTS_TABLE)
+          .insert({
+            file_path: filePath,
+            file_name: fileName,
+            file_type: 'application/json',
+            file_size: blob.size,
+            user_id: user.id
+          });
+        
+        if (insertError) throw insertError;
+      }
       
       showToast('✅ In Storage gespeichert!', 'success');
     } catch (err: unknown) { showToast('Fehler beim Speichern: ' + (err as Error).message, 'error'); }
