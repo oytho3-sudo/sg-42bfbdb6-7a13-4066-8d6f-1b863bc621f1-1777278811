@@ -945,6 +945,78 @@ const LOGO_B64 = '';
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export default function WartungsprotokollDosieranlagen462() {
+  const [lang, setLang] = useState<Lang>('de');
+  const t = translations[lang] as T;
+  const [form, setForm] = useState<FormData>(initialForm);
+  const [sigModal, setSigModal] = useState<{ show: boolean; key: 'sig-gerlieva' | 'sig-kunde'; label: string; existing?: string }>({ show: false, key: 'sig-gerlieva', label: '' });
+  const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' | ''; visible: boolean }>({ msg: '', type: '', visible: false });
+  const [uploading, setUploading] = useState(false);
+  const [toolbarHeight, setToolbarHeight] = useState(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const toolbarRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const importedData = localStorage.getItem('importedFormData');
+    if (importedData) {
+      try {
+        const data = JSON.parse(importedData);
+        applyFormData(data);
+        localStorage.removeItem('importedFormData');
+      } catch (err) {
+        console.error('Fehler beim Laden importierter Daten:', err);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!toolbarRef.current) return;
+    const updateMargin = () => setToolbarHeight(toolbarRef.current?.offsetHeight || 0);
+    updateMargin();
+    const observer = new ResizeObserver(updateMargin);
+    observer.observe(toolbarRef.current);
+    window.addEventListener('resize', updateMargin);
+    return () => { observer.disconnect(); window.removeEventListener('resize', updateMargin); };
+  }, []);
+
+  const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
+    setToast({ msg, type, visible: true });
+    setTimeout(() => setToast(p => ({ ...p, visible: false })), 2500);
+  };
+
+  const applyFormData = (data: FormData) => {
+    if (!data || data.version !== 1) { showToast(t.toastInvalid, 'error'); return; }
+    setForm(data);
+    showToast(t.toastLoaded, 'success');
+  };
+
+  const collectFormData = (): FormData => ({ ...form, version: 1, ts: new Date().toISOString() });
+
+  const setField = <K extends keyof FormData>(key: K, val: FormData[K]) => setForm(f => ({ ...f, [key]: val }));
+
+  const setZeile = (idx: number, partial: Partial<ZeilenState>) => setForm(f => {
+    const z = [...f.zeilenState];
+    z[idx] = { ...z[idx], ...partial };
+    return { ...f, zeilenState: z };
+  });
+
+  const saveJson = () => {
+    try {
+      const json = JSON.stringify(collectFormData(), null, 2);
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = buildFileName('json', form.maschineNr);
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+      showToast(t.toastSaved, 'success');
+    } catch (err: unknown) {
+      showToast(`${t.toastError}${(err as Error).message}`, 'error');
+    }
+  };
+
   const handleUploadToStorage = async () => {
     setUploading(true);
     try {
@@ -955,7 +1027,7 @@ export default function WartungsprotokollDosieranlagen462() {
         return;
       }
 
-      const jsonData = { ...form, version: 1, ts: new Date().toISOString() };
+      const jsonData = collectFormData();
       const jsonStr = JSON.stringify(jsonData, null, 2);
       const fileName = buildFileName('json', form.maschineNr);
       const filePath = `${user.id}/${fileName}`;
@@ -988,5 +1060,181 @@ export default function WartungsprotokollDosieranlagen462() {
   };
 
   const savePdf = () => {
+    alert(t.pdfAlert);
+    const restoreList: Array<() => void> = [];
+    document.querySelectorAll<HTMLInputElement>('input[type="text"], input[type="number"], input[type="time"], input[type="date"], input[type="month"]').forEach(el => {
+      const old = el.getAttribute('value');
+      el.setAttribute('value', el.value);
+      restoreList.push(() => {
+        if (old === null) el.removeAttribute('value');
+        else el.setAttribute('value', old);
+      });
+    });
+    window.print();
+    setTimeout(() => restoreList.forEach(fn => fn()), 1000);
   };
+
+  const loadJson = () => fileInputRef.current?.click();
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        applyFormData(JSON.parse(ev.target?.result as string));
+      } catch (err: unknown) {
+        showToast(`${t.toastLoadError}${(err as Error).message}`, 'error');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
+  const tbtn: React.CSSProperties = {
+    border: 'none', padding: '7px 12px', fontSize: 9, fontWeight: 'bold',
+    borderRadius: 3, cursor: 'pointer', fontFamily: 'Arial, sans-serif',
+    color: '#fff', whiteSpace: 'nowrap', flexShrink: 0, minHeight: 32,
+    touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent',
+  };
+
+  const cellStyle: React.CSSProperties = {
+    border: '1px solid #000', padding: '1px 3px', verticalAlign: 'top',
+    wordBreak: 'break-word', lineHeight: 1.3, fontSize: 8.5,
+  };
+
+  const thStyle: React.CSSProperties = { ...cellStyle, fontWeight: 'bold', textAlign: 'left' };
+
+  const inp = (extra?: React.CSSProperties): React.CSSProperties => ({
+    border: 'none', outline: 'none', width: '100%', fontFamily: 'Arial, sans-serif',
+    fontSize: 8, background: 'transparent', padding: 0, ...extra,
+  });
+
+  return (
+    <>
+      <style>{printStyles}</style>
+      <div ref={toolbarRef} id="toolbar" className="no-print" style={{
+        position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999,
+        background: '#1a2744', padding: '6px 10px',
+        paddingLeft: 'max(10px, env(safe-area-inset-left))',
+        paddingRight: 'max(10px, env(safe-area-inset-right))',
+        display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap',
+        boxSizing: 'border-box',
+      }}>
+        <button onClick={loadJson} style={{ ...tbtn, background: '#8e24aa' }}>{t.loadJson}</button>
+        <button onClick={savePdf} style={{ ...tbtn, background: '#e8460a' }}>{t.savePdf}</button>
+        <button onClick={handleUploadToStorage} disabled={uploading} style={{ ...tbtn, background: '#1a7a3a' }}>
+          {uploading ? '⏳ Lädt...' : t.shareJson}
+        </button>
+        <button onClick={saveJson} style={{ ...tbtn, background: '#1a5fa8' }}>{t.saveJson}</button>
+        <span className="toolbar-title" style={{
+          color: '#a8b8d8', fontSize: 9, flexShrink: 1,
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0,
+        }}>{t.toolbarTitle}</span>
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+          <LangSwitcher current={lang} onChange={setLang} />
+          <a href="/" style={{ ...tbtn, background: '#1a5fa8', textDecoration: 'none' }}>{t.home}</a>
+        </div>
+        <input ref={fileInputRef} type="file" accept=".json,.txt" style={{ display: 'none' }} onChange={handleFileChange} />
+      </div>
+
+      <div id="page-wrapper" style={{
+        marginTop: toolbarHeight + 8, padding: '8px',
+        paddingLeft: 'max(8px, env(safe-area-inset-left))',
+        paddingRight: 'max(8px, env(safe-area-inset-right))',
+        paddingBottom: 'max(16px, env(safe-area-inset-bottom))',
+        display: 'flex', flexDirection: 'column', alignItems: 'center',
+        gap: 20, boxSizing: 'border-box', minHeight: '100vh',
+      }}>
+        <div className="a4" style={{
+          width: 'min(210mm, 100%)', background: '#fff', padding: '10mm 11mm',
+          boxShadow: '0 3px 16px rgba(0,0,0,.25)', boxSizing: 'border-box',
+        }}>
+          <h2 style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 8, fontFamily: 'Arial, sans-serif', color: '#000' }}>
+            {t.docTitle}
+          </h2>
+
+          <table style={{ marginBottom: 0, width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+            <colgroup>
+              <col style={{ width: '13%' }} />
+              <col style={{ width: '5%' }} />
+              <col style={{ width: '18%' }} />
+              <col style={{ width: '10%' }} />
+              <col style={{ width: '13%' }} />
+              <col style={{ width: '4%' }} />
+              <col style={{ width: '8%' }} />
+              <col style={{ width: '7%' }} />
+              <col style={{ width: '6%' }} />
+            </colgroup>
+            <tbody>
+              <tr>
+                <td rowSpan={3} style={{ border: '1px solid #000', verticalAlign: 'middle', textAlign: 'center', padding: 0, overflow: 'hidden' }}></td>
+                <td colSpan={6} style={{ border: '1px solid #000', padding: 1 }}></td>
+                <th colSpan={2} style={{ border: '1px solid #000', textAlign: 'right', fontWeight: 'bold', fontSize: 11 }}>
+                  {t.labelWartung}
+                </th>
+              </tr>
+              <tr style={{ height: 18 }}>
+                <th style={thStyle}>{t.labelKunde}</th>
+                <td style={cellStyle}><input type="text" value={form.kunde} onChange={e => setField('kunde', e.target.value)} style={inp({ height: 16 })} /></td>
+                <th style={thStyle}>{t.labelArbeitsplatz}</th>
+                <td style={cellStyle}><input type="text" value={form.arbeitsplatz} onChange={e => setField('arbeitsplatz', e.target.value)} style={inp({ height: 16 })} maxLength={12} /></td>
+                <th style={thStyle}>{t.labelDgm}</th>
+                <td style={cellStyle}><input type="text" value={form.dgm} onChange={e => setField('dgm', e.target.value)} style={inp({ height: 16 })} /></td>
+                <th style={thStyle}>{t.labelPosition}</th>
+                <td style={{ ...cellStyle, width: 55 }}><input type="text" value={form.position} onChange={e => setField('position', e.target.value)} style={inp({ width: 52, height: 16 })} maxLength={8} /></td>
+              </tr>
+              <tr style={{ height: 18 }}>
+                <th style={thStyle}>{t.labelMaschinTyp}</th>
+                <td style={cellStyle}><input type="text" value={form.maschinTyp} onChange={e => setField('maschinTyp', e.target.value)} style={inp({ height: 16 })} /></td>
+                <th style={thStyle}>{t.labelMaschineNr}</th>
+                <td style={cellStyle}><input type="text" value={form.maschineNr} onChange={e => setField('maschineNr', e.target.value)} style={inp({ height: 16 })} maxLength={12} /></td>
+                <th style={thStyle}>{t.labelKom}</th>
+                <td style={cellStyle}><input type="text" value={form.kom} onChange={e => setField('kom', e.target.value)} style={inp({ height: 16 })} /></td>
+                <th style={thStyle}>{t.labelBaujahr}</th>
+                <td style={{ ...cellStyle, width: 72 }}>
+                  <input type="month" value={form.baujahr} onChange={e => setField('baujahr', e.target.value)} style={{
+                    border: 'none', outline: 'none', fontFamily: 'Arial', fontSize: 7.5,
+                    background: 'transparent', color: '#000', colorScheme: 'light',
+                    padding: 0, width: 70, height: 16, cursor: 'pointer',
+                  }} />
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+            <colgroup>
+              <col style={{ width: '47%' }} />
+              <col style={{ width: '4%' }} />
+              <col style={{ width: '5%' }} />
+              <col style={{ width: '44%' }} />
+            </colgroup>
+            <thead>
+              <tr>
+                <th style={thStyle}><strong>{t.colPruefpunkt}</strong></th>
+                <th style={{ ...thStyle, textAlign: 'center', fontSize: 7.5 }}>{t.colOk}</th>
+                <th style={{ ...thStyle, textAlign: 'center', fontSize: 7.5 }}>{t.colName}</th>
+                <th style={{ ...thStyle, fontSize: 7 }}>{t.colBemerkung}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {alleZeilen.map((z, i) => (
+                <PruefZeile
+                  key={i}
+                  zeile={z}
+                  state={form.zeilenState[i] ?? { ck: 0, name: '', bem: '' }}
+                  onChange={p => setZeile(i, p)}
+                  rowIndex={i}
+                  t={t}
+                />
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <Toast msg={toast.msg} type={toast.type} visible={toast.visible} />
+    </>
+  );
 }
