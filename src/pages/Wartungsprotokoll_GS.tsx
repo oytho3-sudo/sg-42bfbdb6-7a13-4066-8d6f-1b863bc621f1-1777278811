@@ -916,48 +916,17 @@ const printStyles = `
 // Logo
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const [sigModal, setSigModal] = useState<{ id: 'sig-gerlieva' | 'sig-kunde'; label: string } | null>(null);
-const [toast, setToast]       = useState<{ msg: string; type: 'success' | 'error' | ''; visible: boolean }>({ msg: '', type: '', visible: false });
-const [uploading, setUploading] = useState(false);
-const fileInputRef  = useRef<HTMLInputElement>(null);
+const LOGO_B64 = '';
 
-const handleUploadToStorage = async () => {
-  setUploading(true);
-  try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      showToast('Bitte zuerst anmelden', 'error');
-      setUploading(false);
-      return;
-    }
-
-    const jsonData = collectFormData();
-    const jsonStr = JSON.stringify(jsonData, null, 2);
-    const fileName = getFileNameFn('json');
-    const filePath = `${user.id}/${fileName}`;
-
-    const { error: uploadError } = await supabase.storage
-      .from(DOCUMENTS_BUCKET)
-      .upload(filePath, new Blob([jsonStr], { type: 'application/json' }), { upsert: true });
-
-    if (uploadError) throw uploadError;
-
-    const { error: dbError } = await supabase
-      .from(DOCUMENTS_TABLE)
-      .upsert({
-        file_path: filePath,
-        file_name: fileName,
-        file_type: 'application/json',
-        uploaded_by: user.id,
-        metadata: { protocol_type: 'Wartungsprotokoll_GS', machine_nr: form.maschineNr || 'unbekannt' }
-      }, { onConflict: 'file_path' });
-
-    if (dbError) throw dbError;
-
-    showToast('✅ In Storage gespeichert!', 'success');
-  } catch (err: unknown) {
-    showToast('Fehler beim Speichern: ' + (err as Error).message, 'error');
-  } finally {
-    setUploading(false);
-  }
-};
+// ═══════════════════════════════════════════════════════════════════════════════
+// Haupt-Komponente
+// ═══════════════════════════════════════════════════════════════════════════════
+const { error: dbError } = await supabase
+  .from(DOCUMENTS_TABLE)
+  .upsert({
+    file_path: filePath,
+    file_name: fileName,
+    file_type: 'application/json',
+    user_id: user.id,
+    metadata: { protocol_type: 'Wartungsprotokoll_GS', machine_nr: form.maschineNr || 'unbekannt' }
+  }, { onConflict: 'file_path' });

@@ -1000,7 +1000,7 @@ export default function WartungsprotokollDosieranlagen464() {
           file_path: filePath,
           file_name: fileName,
           file_type: 'application/json',
-          uploaded_by: user.id,
+          user_id: user.id,
           metadata: { protocol_type: 'Wartungsprotokoll_Dosieranlagen_464', machine_nr: form.maschineNr || 'unbekannt' }
         }, { onConflict: 'file_path' });
 
