@@ -989,7 +989,7 @@ export default function WartungsprotokollDosieranlagen462() {
     showToast(t.toastLoaded, 'success');
   };
 
-  const collectFormData = (): FormData => ({ ...form, version: 1, ts: new Date().toISOString() });
+  const collectFormData = (): FormData => ({ ...form, version: 1, ts: new Date().toISOString(), dokumentTyp: "dosieranlagen462" });
 
   const setField = <K extends keyof FormData>(key: K, val: FormData[K]) => setForm(f => ({ ...f, [key]: val }));
 

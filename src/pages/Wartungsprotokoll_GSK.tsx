@@ -1015,7 +1015,7 @@ export default function WartungsprotokollPage() {
   };
 
   // ── JSON I/O ───────────────────────────────────────────────────────────────
-  const collectFormData = () => ({ ...form, ts: new Date().toISOString() });
+  const collectFormData = () => ({ ...form, ts: new Date().toISOString(), dokumentTyp: "gskwartung" });
 
   const applyFormData = (data: FormData) => {
     if (!data || data.version !== 1) { showToast(t.toastInvalid, 'error'); return; }
