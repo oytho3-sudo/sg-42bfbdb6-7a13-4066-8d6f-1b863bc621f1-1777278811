@@ -363,6 +363,7 @@ interface Monteur {
 interface FormData {
   version:       number;
   ts:            string;
+  dokumentTyp:   string;
   kunde:         string;
   arbeitsplatz:  string;
   dgm:           string;
@@ -381,7 +382,24 @@ interface FormData {
   massnahmen:    string;
   zeilenState:   ZeilenState[];
   material:      MaterialRow[];
-  istZustand:    { mengeHub: string; mischung: string; bemerkung: string };
+  anlagenOpt:    { kantenspaltfilter: Ck2State; dosierpumpe: '' | 'pneumatisch' | 'elektrisch'; fassdeckel: Ck2State };
+  istZustand:    {
+    mengeHub: string; mischung: string; vorlauf: string; spuelzeit: string;
+    ruecklauf: string; duesenspuelen: string; filterspuelen: string; bemerkung: string;
+  };
+  dpPruef: {
+    oelstand:         Ck2State;
+    drehrichtung:     Ck2State;
+    laufzeit:         string;
+    rueckstellkraft:  Ck2State;
+    endschalterPos:   Ck2State;
+    zeitVorVorne:     string;
+    zeitVorneZurueck: string;
+    zeitZurueckHinten:string;
+    laufgeraeusche:   Ck2State;
+    dichtigkeit:      Ck2State;
+    ausgelitert:      string;
+  };
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -425,6 +443,7 @@ const emptyMaterial = (): MaterialRow => ({ pos: '', beschreibung: '', teilenumm
 const initialForm = (): FormData => ({
   version:       1,
   ts:            '',
+  dokumentTyp:   '',
   kunde:         '',
   arbeitsplatz:  '',
   dgm:           '',
@@ -441,9 +460,15 @@ const initialForm = (): FormData => ({
   signatures:    {},
   bemerkungen:   '',
   massnahmen:    '',
-  zeilenState:   Array.from({ length: TOTAL_ZEILEN_COUNT }, () => ({ ck: 0 as CheckState, name: '', bem: '', value: '', extra: 0 as Ck2State })),
+  zeilenState:   Array.from({ length: TOTAL_ZEILEN_COUNT }, () => ({ ck: 0 as CheckState, name: '', bem: '' })),
   material:      Array.from({ length: 15 }, emptyMaterial),
-  istZustand:    { mengeHub: '', mischung: '', bemerkung: '' },
+  anlagenOpt:    { kantenspaltfilter: 0, dosierpumpe: '', fassdeckel: 0 },
+  istZustand:    { mengeHub: '', mischung: '', vorlauf: '', spuelzeit: '', ruecklauf: '', duesenspuelen: '', filterspuelen: '', bemerkung: '' },
+  dpPruef: {
+    oelstand: 0, drehrichtung: 0, laufzeit: '', rueckstellkraft: 0,
+    endschalterPos: 0, zeitVorVorne: '', zeitVorneZurueck: '', zeitZurueckHinten: '',
+    laufgeraeusche: 0, dichtigkeit: 0, ausgelitert: '',
+  },
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
