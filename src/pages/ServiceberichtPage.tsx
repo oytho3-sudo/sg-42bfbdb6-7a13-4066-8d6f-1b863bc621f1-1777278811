@@ -798,8 +798,15 @@ export default function ServiceberichtPage() {
   // ── File name ──────────────────────────────────────────────────────────────
   const getFileName = (ext: string) => {
     const kunde = (form.kundeName || '').trim().replace(/[^a-zA-Z0-9_\-]/g, '_');
+    const maschineNr = (form.maschinen.find(m => m.maschinenNr)?.maschinenNr || '').trim().replace(/[^a-zA-Z0-9_\-]/g, '_');
     const datum = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-    return (kunde ? `Servicebericht_${kunde}_${datum}` : `Servicebericht_${datum}`) + '.' + ext;
+    
+    let name = 'Servicebericht';
+    if (kunde) name += `_${kunde}`;
+    if (maschineNr) name += `_${maschineNr}`;
+    name += `_${datum}`;
+    
+    return name + '.' + ext;
   };
 
   // ── JSON I/O ───────────────────────────────────────────────────────────────
