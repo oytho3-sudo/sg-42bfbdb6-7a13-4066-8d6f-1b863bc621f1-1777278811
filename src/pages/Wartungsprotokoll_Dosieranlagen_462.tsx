@@ -416,6 +416,7 @@ interface Monteur {
 interface FormData {
   version:       number;
   ts:            string;
+  dokumentTyp:   string;
   kunde:         string;
   arbeitsplatz:  string;
   dgm:           string;
@@ -505,6 +506,7 @@ const emptyMaterial = (): MaterialRow => ({ pos: '', beschreibung: '', teilenumm
 const initialForm = (): FormData => ({
   version:       1,
   ts:            '',
+  dokumentTyp:   '',
   kunde:         '',
   arbeitsplatz:  '',
   dgm:           '',
