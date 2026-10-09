@@ -460,7 +460,7 @@ const initialForm = (): FormData => ({
   signatures:    {},
   bemerkungen:   '',
   massnahmen:    '',
-  zeilenState:   Array.from({ length: TOTAL_ZEILEN_COUNT }, () => ({ ck: 0 as CheckState, name: '', bem: '' })),
+  zeilenState:   Array.from({ length: TOTAL_ZEILEN_COUNT }, () => ({ ck: 0 as CheckState, name: '', bem: '', value: '', extra: 0 as Ck2State })),
   material:      Array.from({ length: 15 }, emptyMaterial),
   anlagenOpt:    { kantenspaltfilter: 0, dosierpumpe: '', fassdeckel: 0 },
   istZustand:    { mengeHub: '', mischung: '', vorlauf: '', spuelzeit: '', ruecklauf: '', duesenspuelen: '', filterspuelen: '', bemerkung: '' },
