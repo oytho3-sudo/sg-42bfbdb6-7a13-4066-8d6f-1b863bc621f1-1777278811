@@ -593,7 +593,16 @@ export default function WartungsprotokollGS() {
   const addTag = (mi: number) => setForm(f => { const m = f.monteure.map((mo, i) => i === mi ? { ...mo, tage: [...mo.tage, emptyTag()] } : mo); return { ...f, monteure: m }; });
   const removeTag = (mi: number, ti: number) => setForm(f => { const m = f.monteure.map((mo, i) => { if (i !== mi || mo.tage.length <= 1) return mo; return { ...mo, tage: mo.tage.filter((_, j) => j !== ti) }; }); return { ...f, monteure: m }; });
   const setMaterial = (i: number, key: keyof MaterialRow, val: string) => setForm(f => { const mat = [...f.material]; mat[i] = { ...mat[i], [key]: val }; return { ...f, material: mat }; });
-  const getFileNameFn = (ext: string) => buildFileName(ext, form.maschineNr);
+  const getFileNameFn = (ext: string) => {
+    const maschineNr = (form.maschineNr || '').trim().replace(/[^a-zA-Z0-9_\-]/g, '_');
+    const datum = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    
+    let name = 'Wartungsprotokoll_GS';
+    if (maschineNr) name += `_${maschineNr}`;
+    name += `_${datum}`;
+    
+    return name + '.' + ext;
+  };
   const collectFormData = () => ({ ...form, ts: new Date().toISOString() });
   const applyFormData = (data: FormData) => { if (!data || data.version !== 1) { showToast(t.toastInvalid, 'error'); return; } setForm(data); showToast(t.toastLoaded, 'success'); };
   const handleSave = () => { try { const blob = new Blob([JSON.stringify(collectFormData(), null, 2)], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = getFileNameFn('json'); document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(() => URL.revokeObjectURL(url), 2000); showToast(t.toastSaved, 'success'); } catch (err: unknown) { showToast(t.toastError + (err as Error).message, 'error'); } };

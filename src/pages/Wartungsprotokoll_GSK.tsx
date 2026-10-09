@@ -1003,7 +1003,16 @@ export default function WartungsprotokollPage() {
     setForm(f => { const mat = [...f.material]; mat[i] = { ...mat[i], [key]: val }; return { ...f, material: mat }; });
 
   // ── File name ──────────────────────────────────────────────────────────────
-  const getFileNameFn = (ext: string) => buildFileName(ext, form.maschineNr);
+  const getFileNameFn = (ext: string) => {
+    const maschineNr = (form.maschineNr || '').trim().replace(/[^a-zA-Z0-9_\-]/g, '_');
+    const datum = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    
+    let name = 'Wartungsprotokoll_GSK';
+    if (maschineNr) name += `_${maschineNr}`;
+    name += `_${datum}`;
+    
+    return name + '.' + ext;
+  };
 
   // ── JSON I/O ───────────────────────────────────────────────────────────────
   const collectFormData = () => ({ ...form, ts: new Date().toISOString() });
