@@ -603,7 +603,7 @@ export default function WartungsprotokollGS() {
     
     return name + '.' + ext;
   };
-  const collectFormData = () => ({ ...form, ts: new Date().toISOString() });
+  const collectFormData = () => ({ ...form, ts: new Date().toISOString(), dokumentTyp: "gswartung" });
   const applyFormData = (data: FormData) => { if (!data || data.version !== 1) { showToast(t.toastInvalid, 'error'); return; } setForm(data); showToast(t.toastLoaded, 'success'); };
   const handleSave = () => { try { const blob = new Blob([JSON.stringify(collectFormData(), null, 2)], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = getFileNameFn('json'); document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(() => URL.revokeObjectURL(url), 2000); showToast(t.toastSaved, 'success'); } catch (err: unknown) { showToast(t.toastError + (err as Error).message, 'error'); } };
 
