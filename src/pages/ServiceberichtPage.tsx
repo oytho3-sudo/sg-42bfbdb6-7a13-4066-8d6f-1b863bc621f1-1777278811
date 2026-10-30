@@ -686,7 +686,7 @@ function SigPreview({ dataUrl, onClick, tapLabel }: { dataUrl?: string; onClick:
 function safeNamePart(v: string): string {
   return (v || '').trim()
     .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue')
-    .replace(/Ä/g, 'Ae').replace(/Ö/g, 'Oe').replace(/Ü/g, 'Ue').replace(/ß/g, 'ss')
+    .replace(/Ä/G, 'Ae').replace(/Ö/g, 'Oe').replace(/Ü/g, 'Ue').replace(/ß/g, 'ss')
     .replace(/[^a-zA-Z0-9_\-]+/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
 }
 
@@ -703,6 +703,11 @@ export default function ServiceberichtPage() {
   const t = translations[lang] as T;
 
   const [form, setForm]         = useState<FormData>(initialForm);
+
+  // ── Dokumenten-Tracking für Aktualisierungen ────────────────────────────────
+  // Wenn ein Dokument aus Storage geladen wurde, speichern wir die Metadaten
+  const [loadedDocumentId, setLoadedDocumentId] = useState<string | null>(null);
+  const [loadedFilePath, setLoadedFilePath] = useState<string | null>(null);
 
   // ── Ungespeicherte Änderungen erkennen ──────────────────────────────────────
   // Stand nach Laden / Speichern merken; Abweichung = ungespeichert
@@ -900,7 +905,18 @@ export default function ServiceberichtPage() {
     if (importedData) {
       try {
         const data = JSON.parse(importedData);
-        applyFormData(data);
+        // Prüfen ob es das neue Format mit Metadaten ist
+        if (data.formData) {
+          // Neues Format: { formData, documentId, filePath, isSharedDocument }
+          applyFormData(data.formData);
+          setLoadedDocumentId(data.documentId || null);
+          setLoadedFilePath(data.filePath || null);
+        } else {
+          // Altes Format: direkt die Form-Daten
+          applyFormData(data);
+          setLoadedDocumentId(null);
+          setLoadedFilePath(null);
+        }
         localStorage.removeItem('importedFormData');
       } catch (err) {
         console.error('Fehler beim Laden importierter Daten:', err);
@@ -927,6 +943,7 @@ export default function ServiceberichtPage() {
     return `Servicebericht · Kunde ${kunde} · ${datum}`;
   };
 
+  // ── Supabase: In Storage speichern (überschreibt vorhandene Datei nach Rückfrage) ──
   const handleUploadToStorage = async () => {
     if (uploading) return;
     if (!safeNamePart(form.kundeName) || !safeNamePart((form.maschinen.find(m => m.maschinenNr)?.maschinenNr || ''))) {
@@ -945,7 +962,38 @@ export default function ServiceberichtPage() {
       const jsonStr  = JSON.stringify(collectFormData(), null, 2);
       const fileName = getFileName('json');
 
-      // Prüfen ob Datei bereits existiert
+      // Fall 1: Dokument wurde aus Storage geladen (loadedDocumentId ist gesetzt)
+      // → Das ORIGINAL-Dokument aktualisieren, nicht ein neues erstellen
+      if (loadedDocumentId && loadedFilePath) {
+        const blob = new Blob([jsonStr], { type: 'application/json' });
+
+        // Storage-Datei aktualisieren (upsert auf dem ursprünglichen Pfad)
+        const { error: uploadError } = await supabase.storage
+          .from(DOCUMENTS_BUCKET)
+          .upload(loadedFilePath, blob, { upsert: true, cacheControl: '0', contentType: 'application/json' });
+
+        if (uploadError) throw uploadError;
+
+        // DB-Eintrag aktualisieren
+        const { error: updateError } = await supabase
+          .from(DOCUMENTS_TABLE)
+          .update({
+            uploaded_at: new Date().toISOString(),
+            file_size: blob.size,
+            description: buildDescription()
+          })
+          .eq('id', loadedDocumentId);
+
+        if (updateError) throw updateError;
+
+        markSaved();
+        showToast(t.toastUploaded, 'success');
+        setUploading(false);
+        return;
+      }
+
+      // Fall 2: Neues Dokument oder manuell erstelltes Dokument
+      // → Normaler Workflow: prüfen ob Datei existiert, ggf. Rückfrage
       const { data: files } = await supabase.storage
         .from(DOCUMENTS_BUCKET)
         .list(user.id, { limit: 1000, search: fileName });
@@ -992,9 +1040,13 @@ export default function ServiceberichtPage() {
           .eq('file_path', filePath);
         
         if (updateError) throw updateError;
+        
+        // Metadaten für zukünftige Updates setzen
+        setLoadedDocumentId(existingDoc.id);
+        setLoadedFilePath(filePath);
       } else {
         // INSERT
-        const { error: insertError } = await supabase
+        const { data: newDoc, error: insertError } = await supabase
           .from(DOCUMENTS_TABLE)
           .insert({
             user_id: user.id,
@@ -1003,9 +1055,17 @@ export default function ServiceberichtPage() {
             file_size: blob.size,
             file_type: 'application/json',
             description: buildDescription()
-          });
+          })
+          .select('id')
+          .single();
         
         if (insertError) throw insertError;
+        
+        // Metadaten für zukünftige Updates setzen
+        if (newDoc) {
+          setLoadedDocumentId(newDoc.id);
+          setLoadedFilePath(filePath);
+        }
       }
 
       markSaved();

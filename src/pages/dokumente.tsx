@@ -410,9 +410,16 @@ export default function DokumentePage() {
         return;
       }
 
-      // Daten in localStorage speichern für die Zielseite
-      localStorage.setItem("importedFormData", JSON.stringify(jsonData));
-      console.log("6. Daten in localStorage gespeichert");
+      // Daten + Dokument-Metadaten in localStorage speichern für die Zielseite
+      // Die Protokollseite muss wissen, dass dies ein bestehendes Dokument ist
+      const importData = {
+        formData: jsonData,
+        documentId: doc.id,
+        filePath: doc.file_path,
+        isSharedDocument: !isOwnDocument(doc)
+      };
+      localStorage.setItem("importedFormData", JSON.stringify(importData));
+      console.log("6. Daten + Dokument-Metadaten in localStorage gespeichert");
       console.log("7. Navigation zu:", targetRoute);
 
       toast({
