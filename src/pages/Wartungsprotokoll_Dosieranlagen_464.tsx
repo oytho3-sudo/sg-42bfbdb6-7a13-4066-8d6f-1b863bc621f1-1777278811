@@ -5,7 +5,10 @@ import { supabase } from '@/integrations/supabase/client';
 
 // Bucket und Tabellen-Namen
 const DOCUMENTS_BUCKET = 'documents';
-const DOCUMENTS_TABLE = 'documents';
+const DOCUMENTS_TABLE  = 'documents';
+
+// Dokumenttyp – muss zur routeMap in pages/dokumente.tsx passen
+const DOKUMENT_TYP = 'dosieranlagen464' as const;
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // i18n
@@ -76,12 +79,19 @@ const translations = {
     tagTypNacht:    'Nachtstunden',
     techPlaceholder:'________________',
     home:           '🏠 Home',
+    storageLink:    '🗄 Storage/Dokumente',
+    leaveTitle:     'Ungespeicherte Änderungen',
+    leaveText:      'Das Protokoll wurde seit dem letzten Speichern geändert.',
+    leaveSave:      '💾 In Storage speichern & weiter',
+    leaveDiscard:   'Ohne Speichern weiter',
+    leaveCancel:    'Abbrechen (im Protokoll bleiben)',
     labelWartungShare: 'Wartungsprotokoll Dosieranlagen GERLIEVA',
     sectionMaterial:'Material- und Teileliste',
     thPos:          'Pos.',
     thBeschreibung: 'Beschreibung',
     thTeilenummer:  'Teilenummer',
     thStk:          'Stk.',
+    // Aktueller Zustand
     istZustandTitle:    'Aktueller Zustand',
     labelMengeHub:      'Menge pro Hub',
     labelMengeHubUnit:  'ml',
@@ -89,24 +99,29 @@ const translations = {
     unitBar:            'bar',
     unitLiter:          'l',
     labelGewechselt:    'gewechselt',
+    // Divider
     divAllgemein:        '▶  DOSIERANLAGE',
     divAktZustand:       '▶  AKTUELLER ZUSTAND',
     divDosierpumpe:      '▶  DOSIERPUMPE',
     divFassdeckel:       '▶  FASSDECKEL / SAUGLANZE',
     divWasserversorgung: '▶  WASSERVERSORGUNG',
+    // Prüfpunkte Dosieranlage 464
     p01: 'Funktion in Automatik: Funktion',
     p02: 'Funktionen im Handbetrieb: Wasserzulauf / Dosierpumpe',
     p06: 'Pufferbehaelter: Zustand und Funktion der Fuellstandschalter',
     p07: 'Membranpumpe: Drehmoment Schrauben, Funktion, Dichtigkeit',
     p09: 'Mediumleitungen: Kontrolldurchgang Schlaeuche, Verschraubungen',
     p10: 'Druckluft: Dichtigkeit, Schlaeuche, Armaturen, Filter, Oeler',
+    // Dosierpumpe
     p12: 'Funktion',
     p13: 'Dichtigkeit',
     p14: 'ermittelte Menge',
+    // Fassdeckel / Sauglanze
     p15: 'Saugleitung',
     p16: 'Fasswechsel',
     p17: 'Fuellstandschalter',
     p18: 'Rückschlagventil',
+    // Wasserversorgung
     p19: 'Druck',
     p20: 'Dichtigkeit',
     p21: 'Filtereinsatz',
@@ -117,7 +132,7 @@ const translations = {
   en: {
     loadJson:       '📂 Load JSON',
     savePdf:        '⬇ Save as PDF',
-    shareJson:      '📤 Share JSON',
+    shareJson:      '📤 Save to storage',
     saveJson:       '💾 Save JSON',
     toolbarTitle:   'Maintenance Log GSK · GERLIEVA Sprühtechnik GmbH',
     pdfAlert:       'In the print dialog:\n1. Printer → "Save as PDF"\n2. More settings → enable "Background graphics" ✓\n→ This ensures all colours appear in the PDF.',
@@ -176,12 +191,19 @@ const translations = {
     tagTypNacht:    'Night hours',
     techPlaceholder:'________________',
     home:           '🏠 Home',
+    storageLink:    '🗄 Storage/Documents',
+    leaveTitle:     'Unsaved changes',
+    leaveText:      'The protocol has been changed since it was last saved.',
+    leaveSave:      '💾 Save to storage & continue',
+    leaveDiscard:   'Continue without saving',
+    leaveCancel:    'Cancel (stay in protocol)',
     labelWartungShare: 'Maintenance Log GERLIEVA',
     sectionMaterial:'Materials & Parts List',
     thPos:          'Pos.',
     thBeschreibung: 'Description',
     thTeilenummer:  'Part Number',
     thStk:          'Qty.',
+    // Current condition
     istZustandTitle:    'Current condition',
     labelMengeHub:      'Volume per stroke',
     labelMengeHubUnit:  'ml',
@@ -194,19 +216,23 @@ const translations = {
     divDosierpumpe:      '▶  DOSING PUMP',
     divFassdeckel:       '▶  DRUM LID / SUCTION LANCE',
     divWasserversorgung: '▶  WATER SUPPLY',
+    // Checkpoints dosing unit 464
     p01: 'Function in automatic mode: function',
     p02: 'Functions in manual mode: water feed / dosing pump',
     p06: 'Buffer tank: status and function of the level switches',
     p07: 'Diaphragm pump: torque screws, function, tightness',
     p09: 'Medium lines: control passage hoses, fittings',
     p10: 'Compressed air: tightness, hoses, fittings, filters, oilers',
+    // Dosing pump
     p12: 'Function',
     p13: 'Tightness',
     p14: 'measured quantity',
+    // Drum lid / suction lance
     p15: 'Suction line',
     p16: 'Drum change',
     p17: 'Level switch',
     p18: 'Check valve',
+    // Water supply
     p19: 'Pressure',
     p20: 'Tightness',
     p21: 'Filter cartridge',
@@ -217,7 +243,7 @@ const translations = {
   fr: {
     loadJson:       '📂 Charger JSON',
     savePdf:        '⬇ Enregistrer en PDF',
-    shareJson:      '📤 Partager JSON',
+    shareJson:      '📤 Enregistrer dans le stockage',
     saveJson:       '💾 Sauvegarder JSON',
     toolbarTitle:   'Protocole de maintenance GSK · GERLIEVA Sprühtechnik GmbH',
     pdfAlert:       "Dans la boîte de dialogue d'impression :\n1. Imprimante → \"Enregistrer en PDF\"\n2. Paramètres → activer \"Graphiques d'arrière-plan\" ✓\n→ Toutes les couleurs apparaîtront dans le PDF.",
@@ -276,12 +302,19 @@ const translations = {
     tagTypNacht:    'Heures de nuit',
     techPlaceholder:'________________',
     home:           '🏠 Accueil',
+    storageLink:    '🗄 Storage/Documents',
+    leaveTitle:     'Modifications non enregistrées',
+    leaveText:      'Le protocole a été modifié depuis le dernier enregistrement.',
+    leaveSave:      '💾 Enregistrer dans le stockage et continuer',
+    leaveDiscard:   'Continuer sans enregistrer',
+    leaveCancel:    'Annuler (rester dans le protocole)',
     labelWartungShare: 'Protocole de maintenance GERLIEVA',
     sectionMaterial:'Liste des matériaux et pièces',
     thPos:          'Pos.',
     thBeschreibung: 'Description',
     thTeilenummer:  'N° de pièce',
     thStk:          'Qté.',
+    // État actuel
     istZustandTitle:    'État actuel',
     labelMengeHub:      'Volume par course',
     labelMengeHubUnit:  'ml',
@@ -294,19 +327,23 @@ const translations = {
     divDosierpumpe:      '▶  POMPE DOSEUSE',
     divFassdeckel:       "▶  COUVERCLE DE FÛT / LANCE D'ASPIRATION",
     divWasserversorgung: '▶  ALIMENTATION EN EAU',
+    // Points de contrôle installation de dosage 464
     p01: 'Fonction en mode automatique : fonction',
     p02: "Fonctions en mode manuel : arrivée d'eau / pompe doseuse",
     p06: 'Réservoir tampon : état et fonction des interrupteurs de niveau',
     p07: 'Pompe à membrane : couple des vis, fonction, étanchéité',
     p09: 'Conduites de produit : contrôle du passage, flexibles, raccords',
     p10: 'Air comprimé : étanchéité, flexibles, raccords, filtres, huileurs',
+    // Pompe doseuse
     p12: 'Fonction',
     p13: 'Étanchéité',
     p14: 'quantité mesurée',
+    // Couvercle de fût / lance d'aspiration
     p15: "Conduite d'aspiration",
     p16: 'Changement de fût',
     p17: 'Interrupteur de niveau',
     p18: 'Vanne anti-retour',
+    // Alimentation en eau
     p19: 'Pression',
     p20: 'Étanchéité',
     p21: 'Cartouche filtrante',
@@ -363,7 +400,6 @@ interface Monteur {
 interface FormData {
   version:       number;
   ts:            string;
-  dokumentTyp:   string;
   kunde:         string;
   arbeitsplatz:  string;
   dgm:           string;
@@ -382,30 +418,14 @@ interface FormData {
   massnahmen:    string;
   zeilenState:   ZeilenState[];
   material:      MaterialRow[];
-  anlagenOpt:    { kantenspaltfilter: Ck2State; dosierpumpe: '' | 'pneumatisch' | 'elektrisch'; fassdeckel: Ck2State };
-  istZustand:    {
-    mengeHub: string; mischung: string; vorlauf: string; spuelzeit: string;
-    ruecklauf: string; duesenspuelen: string; filterspuelen: string; bemerkung: string;
-  };
-  dpPruef: {
-    oelstand:         Ck2State;
-    drehrichtung:     Ck2State;
-    laufzeit:         string;
-    rueckstellkraft:  Ck2State;
-    endschalterPos:   Ck2State;
-    zeitVorVorne:     string;
-    zeitVorneZurueck: string;
-    zeitZurueckHinten:string;
-    laufgeraeusche:   Ck2State;
-    dichtigkeit:      Ck2State;
-    ausgelitert:      string;
-  };
+  istZustand:    { mengeHub: string; mischung: string; bemerkung: string };
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Zeilen-Daten
 // ═══════════════════════════════════════════════════════════════════════════════
 
+// Seite 1: ALLE Prüfpunkte Dosieranlage 464 (4 Bereiche: Dosieranlage, Dosierpumpe, Fassdeckel/Sauglanze, Wasserversorgung)
 const alleZeilen: Zeile[] = [
   { divider: 'divAllgemein' },
   { textKey: 'p01', bem: '' },
@@ -432,8 +452,10 @@ const alleZeilen: Zeile[] = [
   { textKey: 'p23', bem: '' },
 ];
 
+// Seite 2: leer (Fuß + Unterschriften werden separat gerendert)
 const seite2Zeilen: Zeile[] = [];
 
+// Gesamtanzahl Zeilen für zeilenState-Array:
 const TOTAL_ZEILEN_COUNT = alleZeilen.length;
 
 const emptyTag      = (): MontagTag => ({ datum: '', vonZeit: '', bisZeit: '', pauseMin: '', tagTyp: '' });
@@ -443,7 +465,6 @@ const emptyMaterial = (): MaterialRow => ({ pos: '', beschreibung: '', teilenumm
 const initialForm = (): FormData => ({
   version:       1,
   ts:            '',
-  dokumentTyp:   '',
   kunde:         '',
   arbeitsplatz:  '',
   dgm:           '',
@@ -462,13 +483,7 @@ const initialForm = (): FormData => ({
   massnahmen:    '',
   zeilenState:   Array.from({ length: TOTAL_ZEILEN_COUNT }, () => ({ ck: 0 as CheckState, name: '', bem: '', value: '', extra: 0 as Ck2State })),
   material:      Array.from({ length: 15 }, emptyMaterial),
-  anlagenOpt:    { kantenspaltfilter: 0, dosierpumpe: '', fassdeckel: 0 },
-  istZustand:    { mengeHub: '', mischung: '', vorlauf: '', spuelzeit: '', ruecklauf: '', duesenspuelen: '', filterspuelen: '', bemerkung: '' },
-  dpPruef: {
-    oelstand: 0, drehrichtung: 0, laufzeit: '', rueckstellkraft: 0,
-    endschalterPos: 0, zeitVorVorne: '', zeitVorneZurueck: '', zeitZurueckHinten: '',
-    laufgeraeusche: 0, dichtigkeit: 0, ausgelitert: '',
-  },
+  istZustand:    { mengeHub: '', mischung: '', bemerkung: '' },
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -484,6 +499,7 @@ function calcNettoMin(tag: MontagTag): number {
   return diff > 0 ? diff - pause : 0;
 }
 
+// Nachtstunden: Minuten vor 06:00 und nach 20:00 (ohne Pause-Anteil)
 function calcNachtMin(tag: MontagTag): number {
   if (!tag.vonZeit || !tag.bisZeit) return 0;
   const [vh, vm] = tag.vonZeit.split(':').map(Number);
@@ -491,9 +507,11 @@ function calcNachtMin(tag: MontagTag): number {
   const von  = vh * 60 + vm;
   const bis  = bh * 60 + bm;
   if (bis <= von) return 0;
-  const NACHT_START = 20 * 60;
-  const NACHT_ENDE  =  6 * 60;
+  const NACHT_START = 20 * 60; // 20:00
+  const NACHT_ENDE  =  6 * 60; //  6:00
+  // Minuten vor 06:00
   const vorSechs = von < NACHT_ENDE ? Math.min(bis, NACHT_ENDE) - von : 0;
+  // Minuten nach 20:00
   const nachZwanzig = bis > NACHT_START ? bis - Math.max(von, NACHT_START) : 0;
   return Math.max(0, vorSechs + nachZwanzig);
 }
@@ -522,10 +540,20 @@ function calcGesamtBreakdown(monteure: Monteur[]): { total: number; samstag: num
   return { total, samstag, sonntag, feiertag, nacht };
 }
 
-function buildFileName(ext: string, maschineNr: string): string {
-  const nr = maschineNr.trim().replace(/[^a-zA-Z0-9_\-]/g, '_');
-  const d  = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-  return (nr ? `Wartungsprotokoll_${nr}_${d}` : `Wartungsprotokoll_${d}`) + '.' + ext;
+// Teil des Dateinamens: Umlaute umschreiben, Sonderzeichen → "_"
+function safeNamePart(v: string): string {
+  return (v || '').trim()
+    .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue')
+    .replace(/Ä/g, 'Ae').replace(/Ö/g, 'Oe').replace(/Ü/g, 'Ue').replace(/ß/g, 'ss')
+    .replace(/[^a-zA-Z0-9_\-]+/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+}
+
+// Dateiname = Protokolltyp + Kunde + Nummer (ohne Datum) → dasselbe Protokoll
+// landet immer in derselben Datei und wird beim Speichern überschrieben.
+function buildFileName(ext: string, kunde: string, nummer: string): string {
+  const parts = ['Wartungsprotokoll_Dosieranlagen_464', safeNamePart(kunde), safeNamePart(nummer)].filter(Boolean);
+  if (parts.length === 1) parts.push(new Date().toISOString().slice(0, 10).replace(/-/g, '')); // nur Fallback für lokalen Download ohne Angaben
+  return parts.join('_') + '.' + ext;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -621,8 +649,13 @@ function SignatureModal({ label, existing, onClose, t }: SigModalProps) {
     const resize = () => {
       const container = canvas.parentElement!;
       const dpr = window.devicePixelRatio || 1;
-      const w = Math.max(container.clientWidth - 16, 100);
-      const h = Math.max(container.clientHeight - 16, 80);
+      const maxW = Math.max(container.clientWidth - 16, 100);
+      const maxH = Math.max(container.clientHeight - 16, 80);
+      // Gleiches Seitenverhältnis wie das Unterschriftsfeld (4:1) – sonst wird die
+      // Unterschrift beim Einpassen gestaucht und erscheint nur noch als dünne Punkte.
+      const w = Math.min(maxW, maxH * 4);
+      const h = w / 4;
+      // Aktuellen Inhalt retten bevor Canvas-Größe geändert wird
       const tmp = document.createElement('canvas');
       tmp.width = canvas.width; tmp.height = canvas.height;
       tmp.getContext('2d')!.drawImage(canvas, 0, 0);
@@ -631,6 +664,7 @@ function SignatureModal({ label, existing, onClose, t }: SigModalProps) {
       const ctx = canvas.getContext('2d')!;
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.scale(dpr, dpr);
+      // Alten Inhalt maßstabsgerecht zurückzeichnen
       const oldW = tmp.width / dpr, oldH = tmp.height / dpr;
       ctx.drawImage(tmp, 0, 0, oldW, oldH, 0, 0, w, h);
     };
@@ -653,12 +687,13 @@ function SignatureModal({ label, existing, onClose, t }: SigModalProps) {
 
   const getPos = (e: React.MouseEvent | React.TouchEvent, c: HTMLCanvasElement) => {
     const r = c.getBoundingClientRect(), src = 'touches' in e ? e.touches[0] : e;
+    // Skalierung berücksichtigen: canvas kann via CSS kleiner dargestellt sein als intern
     const scaleX = c.width  / (window.devicePixelRatio || 1) / r.width;
     const scaleY = c.height / (window.devicePixelRatio || 1) / r.height;
     return { x: (src.clientX - r.left) * scaleX, y: (src.clientY - r.top) * scaleY };
   };
   const onStart = (e: React.MouseEvent | React.TouchEvent) => { e.preventDefault(); drawing.current = true; const c = canvasRef.current!; const ctx = c.getContext('2d')!; const p = getPos(e, c); ctx.beginPath(); ctx.moveTo(p.x, p.y); };
-  const onMove  = (e: React.MouseEvent | React.TouchEvent) => { e.preventDefault(); if (!drawing.current) return; const c = canvasRef.current!; const ctx = c.getContext('2d')!; const p = getPos(e, c); ctx.lineTo(p.x, p.y); ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.stroke(); };
+  const onMove  = (e: React.MouseEvent | React.TouchEvent) => { e.preventDefault(); if (!drawing.current) return; const c = canvasRef.current!; const ctx = c.getContext('2d')!; const p = getPos(e, c); ctx.lineTo(p.x, p.y); ctx.strokeStyle = '#000'; ctx.lineWidth = Math.max(2, c.width / (window.devicePixelRatio || 1) / 150); ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.stroke(); };
   const onStop  = () => { drawing.current = false; canvasRef.current?.getContext('2d')?.closePath(); };
 
   const tbtn = (bg: string): React.CSSProperties => ({ background: bg, color: '#fff', border: 'none', padding: '8px 16px', borderRadius: 4, fontSize: 11, cursor: 'pointer', marginRight: 4, fontFamily: 'Arial, sans-serif' });
@@ -671,9 +706,9 @@ function SignatureModal({ label, existing, onClose, t }: SigModalProps) {
         <button onClick={() => onClose()} style={tbtn('#888')}>{t.sigCancel}</button>
         <button onClick={() => onClose(canvasRef.current?.toDataURL('image/png'))} style={tbtn('#2a7a2a')}>{t.sigOk}</button>
       </div>
-      <div style={{ flex: 1, padding: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f0f0f0' }}>
+      <div style={{ flex: 1, minHeight: 0, padding: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f0f0f0', overflow: 'hidden' }}>
         <canvas ref={canvasRef} width={400} height={200}
-          style={{ background: 'white', border: '2px solid #aaa', borderRadius: 4, touchAction: 'none', cursor: 'crosshair', maxWidth: '100%', maxHeight: '100%' }}
+          style={{ background: 'white', border: '2px solid #aaa', borderRadius: 4, touchAction: 'none', cursor: 'crosshair', maxWidth: '100%', maxHeight: '100%', boxSizing: 'border-box' }}
           onMouseDown={onStart} onMouseMove={onMove} onMouseUp={onStop} onMouseLeave={onStop}
           onTouchStart={onStart} onTouchMove={onMove} onTouchEnd={onStop} />
       </div>
@@ -691,11 +726,13 @@ function SigPreview({ dataUrl, onClick, tapLabel }: { dataUrl?: string; onClick:
   const redraw = useCallback(() => {
     const canvas = canvasRef.current; if (!canvas) return;
     const dpr = window.devicePixelRatio || 1;
+    // parentElement-Breite als zuverlässigere Quelle – getBoundingClientRect kann 0 liefern wenn noch nicht gerendert
     const parent = canvas.parentElement;
     const w = (parent ? parent.clientWidth : canvas.offsetWidth) || 300;
     const h = (parent ? parent.clientHeight : canvas.offsetHeight) || 75;
     canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
-    canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
+    // Keine festen px-Größen setzen: CSS (100% / border-box) bestimmt die Größe,
+    // sonst wächst der Container durch den Rahmen bei jedem Resize weiter.
     const ctx = canvas.getContext('2d')!;
     ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.scale(dpr, dpr);
     if (dataUrl) {
@@ -707,6 +744,7 @@ function SigPreview({ dataUrl, onClick, tapLabel }: { dataUrl?: string; onClick:
   }, [dataUrl, tapLabel]);
 
   useEffect(() => {
+    // Mehrfach versuchen – Layout kann beim ersten Render noch nicht stabil sein
     const t1 = setTimeout(redraw, 50);
     const t2 = setTimeout(redraw, 300);
     const observer = new ResizeObserver(() => redraw());
@@ -716,10 +754,10 @@ function SigPreview({ dataUrl, onClick, tapLabel }: { dataUrl?: string; onClick:
   }, [redraw]);
 
   return (
-    <div style={{ position: 'relative', width: '100%', aspectRatio: '4/1' }}>
+    <div style={{ position: 'relative', width: '100%', aspectRatio: '4/1', overflow: 'hidden', boxSizing: 'border-box' }}>
       <canvas ref={canvasRef} width={400} height={100} onClick={onClick}
         className="sig-canvas"
-        style={{ border: '2px dashed #999', background: 'white', cursor: 'pointer', width: '100%', height: '100%', borderRadius: 3, display: 'block', touchAction: 'none' }} />
+        style={{ border: '2px dashed #999', background: 'white', cursor: 'pointer', width: '100%', height: '100%', boxSizing: 'border-box', borderRadius: 3, display: 'block', touchAction: 'none' }} />
       {dataUrl
         ? <img src={dataUrl} alt="Unterschrift" className="sig-print-img"
             style={{ display: 'none', width: '100%', height: '100%', objectFit: 'contain', border: '1px solid #000' }} />
@@ -826,6 +864,7 @@ function PruefZeile({ zeile, state, onChange, rowIndex, t }: {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const printStyles = `
+  /* ── Globaler Reset ── */
   html {
     overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
@@ -852,6 +891,7 @@ const printStyles = `
     .sig-print-empty { display: block !important; width: 100% !important; height: 60px !important; border: 1px solid #000; background: white; }
   }
 
+  /* ── Schwarze Felder verhindern (Dark Mode / Android Chrome) ── */
   input[type="date"],
   input[type="time"],
   input[type="month"] {
@@ -864,12 +904,14 @@ const printStyles = `
     color: #000 !important;
   }
 
+  /* ── Kleine Screens (Handy Hochformat) ── */
   @media screen and (max-width: 600px) {
     .toolbar-title { display: none; }
     #page-wrapper  { padding: 4px !important; }
     .a4            { padding: 4mm 4mm !important; }
   }
 
+  /* ── Handy Querformat ── */
   @media screen and (max-width: 900px) and (orientation: landscape) {
     .toolbar-title { display: none; }
     #page-wrapper  { padding: 4px !important; padding-left: max(4px, env(safe-area-inset-left)) !important; padding-right: max(4px, env(safe-area-inset-right)) !important; }
@@ -878,22 +920,61 @@ const printStyles = `
 `;
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// Main Component
+// Logo
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export default function WartungsprotokollDosieranlagen464() {
-  const [lang, setLang] = useState<Lang>('de');
-  const t: T = translations[lang];
+const LOGO_SRC = '/gerlieva-logo.png';
 
-  const [form, setForm] = useState<FormData>(initialForm());
-  const [sigModal, setSigModal] = useState<{ show: boolean; key: 'sig-gerlieva' | 'sig-kunde'; label: string; existing?: string }>({ show: false, key: 'sig-gerlieva', label: '' });
-  const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' | ''; visible: boolean }>({ msg: '', type: '', visible: false });
+// ═══════════════════════════════════════════════════════════════════════════════
+// Haupt-Komponente
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export default function WartungsprotokollPage() {
+  const [lang, setLang]         = useState<Lang>('de');
+  const t = translations[lang] as T;
+
+  const [form, setForm]         = useState<FormData>(initialForm);
+
+  // ── Ungespeicherte Änderungen erkennen ──────────────────────────────────────
+  // Stand nach Laden / Speichern merken; Abweichung = ungespeichert
+  const formRef        = useRef(form);
+  formRef.current      = form;
+  const savedJsonRef   = useRef<string | null>(null);
+  const markCleanRef   = useRef(true);   // Startzustand gilt als gespeichert
+  const leavingRef     = useRef(false);
+  useEffect(() => {
+    if (markCleanRef.current) { savedJsonRef.current = JSON.stringify(form); markCleanRef.current = false; }
+  }, [form]);
+  const markSaved = () => { savedJsonRef.current = JSON.stringify(formRef.current); };
+  const isDirty   = () => savedJsonRef.current !== null && JSON.stringify(formRef.current) !== savedJsonRef.current;
+  // Browser schließen / neu laden
+  useEffect(() => {
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (leavingRef.current || !isDirty()) return;
+      e.preventDefault(); e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, []);
+  // Home / Storage-Link: bei ungespeicherten Änderungen eigenes Fenster statt sofort wegspringen
+  const [leaveTarget, setLeaveTarget] = useState<string | null>(null);
+  const leaveNow = (href: string) => { leavingRef.current = true; window.location.href = href; };
+  const confirmLeave = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (!isDirty()) { leavingRef.current = true; return; }
+    e.preventDefault();
+    setLeaveTarget(e.currentTarget.getAttribute('href') || '/');
+  };
+  const saveAndLeave = async () => {
+    const target = leaveTarget;
+    setLeaveTarget(null);
+    await handleUploadToStorage();           // bei Fehler / fehlenden Pflichtfeldern bleibt man im Protokoll
+    if (target && !isDirty()) leaveNow(target);
+  };
+  const [sigModal, setSigModal] = useState<{ id: 'sig-gerlieva' | 'sig-kunde'; label: string } | null>(null);
+  const [toast, setToast]       = useState<{ msg: string; type: 'success' | 'error' | ''; visible: boolean }>({ msg: '', type: '', visible: false });
   const [uploading, setUploading] = useState(false);
-  const [toolbarHeight, setToolbarHeight] = useState(0);
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const toolbarRef   = useRef<HTMLDivElement>(null);
-
+  // Importierte Daten aus localStorage laden (z.B. von Dokumenten-Seite)
   useEffect(() => {
     const importedData = localStorage.getItem('importedFormData');
     if (importedData) {
@@ -906,99 +987,128 @@ export default function WartungsprotokollDosieranlagen464() {
       }
     }
   }, []);
+  const [bemExpanded, setBemExpanded] = useState(false);
+  const fileInputRef  = useRef<HTMLInputElement>(null);
+  const toolbarRef    = useRef<HTMLDivElement>(null);
 
+  // Dynamisches marginTop: passt sich an wenn Toolbar durch Wrap höher wird
   useEffect(() => {
-    const measure = () => { if (toolbarRef.current) setToolbarHeight(toolbarRef.current.offsetHeight); };
-    measure();
-    const observer = new ResizeObserver(() => measure());
-    if (toolbarRef.current) observer.observe(toolbarRef.current);
-    window.addEventListener('resize', measure);
-    return () => { observer.disconnect(); window.removeEventListener('resize', measure); };
+    const toolbar = document.getElementById('toolbar');
+    const wrapper = document.getElementById('page-wrapper');
+    if (!toolbar || !wrapper) return;
+    const observer = new ResizeObserver(() => {
+      wrapper.style.marginTop = toolbar.offsetHeight + 8 + 'px';
+    });
+    observer.observe(toolbar);
+    return () => observer.disconnect();
   }, []);
 
-  const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
+  const showToast = (msg: string, type: 'success' | 'error') => {
     setToast({ msg, type, visible: true });
-    setTimeout(() => setToast(prev => ({ ...prev, visible: false })), 2500);
+    setTimeout(() => setToast(p => ({ ...p, visible: false })), 2500);
   };
 
-  const applyFormData = (data: Partial<FormData>) => {
+  // ── Field helpers ──────────────────────────────────────────────────────────
+  const setField = <K extends keyof FormData>(key: K, val: FormData[K]) =>
+    setForm(f => ({ ...f, [key]: val }));
+
+  const setZeile = (idx: number, partial: Partial<ZeilenState>) =>
+    setForm(f => { const z = [...f.zeilenState]; z[idx] = { ...z[idx], ...partial }; return { ...f, zeilenState: z }; });
+
+  const setMonteurName = (mi: number, val: string) =>
+    setForm(f => { const m = f.monteure.map((mo, i) => i === mi ? { ...mo, name: val } : mo); return { ...f, monteure: m }; });
+
+  const setMontagTag = (mi: number, ti: number, key: keyof MontagTag, val: string) =>
     setForm(f => {
-      const newState = {
-        ...f,
-        version:       data.version        ?? f.version,
-        kunde:         data.kunde          ?? f.kunde,
-        arbeitsplatz:  data.arbeitsplatz   ?? f.arbeitsplatz,
-        dgm:           data.dgm            ?? f.dgm,
-        position:      data.position       ?? f.position,
-        maschinTyp:    data.maschinTyp     ?? f.maschinTyp,
-        maschineNr:    data.maschineNr     ?? f.maschineNr,
-        kom:           data.kom            ?? f.kom,
-        baujahr:       data.baujahr        ?? f.baujahr,
-        wartungDatum:  data.wartungDatum   ?? f.wartungDatum,
-        nameGerlieva:  data.nameGerlieva   ?? f.nameGerlieva,
-        nameKunde:     data.nameKunde      ?? f.nameKunde,
-        signatureDate: data.signatureDate  ?? f.signatureDate,
-        bemerkungen:   data.bemerkungen    ?? f.bemerkungen,
-        massnahmen:    data.massnahmen     ?? f.massnahmen,
-        signatures:    data.signatures     ?? f.signatures,
-        monteure:      data.monteure       ?? f.monteure,
-        zeilenState:   data.zeilenState    ?? f.zeilenState,
-        material:      data.material       ?? f.material,
-        istZustand:    data.istZustand     ?? f.istZustand,
-      };
-      return newState;
+      const m = f.monteure.map((mo, i) => {
+        if (i !== mi) return mo;
+        const tage = mo.tage.map((tag, j) => {
+          if (j !== ti) return tag;
+          const updated = { ...tag, [key]: val };
+          if (key === 'datum' && val) {
+            const dow = new Date(val).getDay();
+            const autoTyp = dow === 6 ? 'samstag' : dow === 0 ? 'sonntag' : '';
+            if (tag.tagTyp !== 'feiertag') {
+              updated.tagTyp = autoTyp as MontagTag['tagTyp'];
+            }
+          }
+          return updated;
+        });
+        return { ...mo, tage };
+      });
+      return { ...f, monteure: m };
     });
+
+  const addMonteur = () =>
+    setForm(f => ({ ...f, monteure: [...f.monteure, emptyMonteur()] }));
+
+  const removeMonteur = () =>
+    setForm(f => f.monteure.length <= 1 ? f : { ...f, monteure: f.monteure.slice(0, -1) });
+
+  const addTag = (mi: number) =>
+    setForm(f => {
+      const m = f.monteure.map((mo, i) => i === mi ? { ...mo, tage: [...mo.tage, emptyTag()] } : mo);
+      return { ...f, monteure: m };
+    });
+
+  const removeTag = (mi: number, ti: number) =>
+    setForm(f => {
+      const m = f.monteure.map((mo, i) => {
+        if (i !== mi || mo.tage.length <= 1) return mo;
+        return { ...mo, tage: mo.tage.filter((_, j) => j !== ti) };
+      });
+      return { ...f, monteure: m };
+    });
+
+  const setMaterial = (i: number, key: keyof MaterialRow, val: string) =>
+    setForm(f => { const mat = [...f.material]; mat[i] = { ...mat[i], [key]: val }; return { ...f, material: mat }; });
+
+  // ── File name ──────────────────────────────────────────────────────────────
+  const getFileNameFn = (ext: string) => buildFileName(ext, form.kunde, form.maschineNr);
+
+  // ── JSON I/O ───────────────────────────────────────────────────────────────
+  const collectFormData = () => ({ ...form, ts: new Date().toISOString(), dokumentTyp: DOKUMENT_TYP });
+
+  const applyFormData = (data: FormData) => {
+    if (!data || data.version !== 1) { showToast(t.toastInvalid, 'error'); return; }
+    markCleanRef.current = true;
+    setForm({ ...initialForm(), ...data });
+    showToast(t.toastLoaded, 'success');
   };
 
-  const saveJson = () => {
-    const json = JSON.stringify({ ...form, version: 1, ts: new Date().toISOString() }, null, 2);
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = buildFileName('json', form.maschineNr);
-    a.click();
-    URL.revokeObjectURL(url);
-    showToast(t.toastDownloaded);
+  // ── Toolbar actions ────────────────────────────────────────────────────────
+  const handleSave = () => {
+    try {
+      const blob = new Blob([JSON.stringify(collectFormData(), null, 2)], { type: 'application/json' });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a'); a.href = url; a.download = getFileNameFn('json');
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+      markSaved();
+      showToast(t.toastSaved, 'success');
+    } catch (err: unknown) { showToast(t.toastError + (err as Error).message, 'error'); }
   };
 
-  const loadJson = () => fileInputRef.current?.click();
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]; if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      try {
-        const data = JSON.parse(reader.result as string) as FormData;
-        applyFormData(data);
-        showToast(t.toastLoaded);
-      } catch {
-        showToast(t.toastInvalid, 'error');
-      }
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    };
-    reader.onerror = () => showToast(`${t.toastLoadError}${reader.error?.message}`, 'error');
-    reader.readAsText(file);
+  const handlePdf = () => {
+    alert(t.pdfAlert);
+    const restoreList: Array<() => void> = [];
+    document.querySelectorAll<HTMLInputElement>(
+      'input[type="text"], input[type="number"], input[type="time"], input[type="date"], input[type="month"]'
+    ).forEach(el => {
+      const old = el.getAttribute('value');
+      el.setAttribute('value', el.value);
+      restoreList.push(() => { if (old === null) el.removeAttribute('value'); else el.setAttribute('value', old); });
+    });
+    window.print();
+    setTimeout(() => restoreList.forEach(fn => fn()), 1000);
   };
 
-  const shareJson = async () => {
-    const json = JSON.stringify({ ...form, version: 1, ts: new Date().toISOString() }, null, 2);
-    const blob = new Blob([json], { type: 'application/json' });
-    const file = new File([blob], buildFileName('json', form.maschineNr), { type: 'application/json' });
-    if (navigator.share && navigator.canShare({ files: [file] })) {
-      try {
-        await navigator.share({ files: [file], title: t.labelWartungShare });
-        showToast(t.toastSaved);
-      } catch (err: unknown) {
-        const error = err as Error;
-        if (error.name !== 'AbortError') showToast(`${t.toastError}${error.message}`, 'error');
-      }
-    } else {
-      saveJson();
-    }
-  };
-
+  // ── Supabase: In Storage speichern (überschreibt vorhandene Datei nach Rückfrage) ──
   const handleUploadToStorage = async () => {
+    if (!safeNamePart(form.kunde) || !safeNamePart(form.maschineNr)) {
+      showToast('Bitte Kunde und Maschine Nr. ausfüllen – daraus wird der Dateiname gebildet.', 'error');
+      return;
+    }
     setUploading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -1008,17 +1118,17 @@ export default function WartungsprotokollDosieranlagen464() {
         return;
       }
 
-      const jsonData = { ...form, version: 1, ts: new Date().toISOString() };
+      const jsonData = collectFormData();
       const jsonStr = JSON.stringify(jsonData, null, 2);
-      const fileName = buildFileName('json', form.maschineNr);
+      const fileName = getFileNameFn('json');
 
       // Prüfen ob Datei bereits existiert
       const { data: files } = await supabase.storage
         .from(DOCUMENTS_BUCKET)
-        .list(user.id);
-      
+        .list(user.id, { limit: 1000, search: fileName });
+
       const exists = files?.some(f => f.name === fileName);
-      
+
       if (exists) {
         const confirmed = window.confirm(
           `Die Datei "${fileName}" existiert bereits.\n\nMöchten Sie sie überschreiben?`
@@ -1034,7 +1144,7 @@ export default function WartungsprotokollDosieranlagen464() {
 
       const { error: uploadError } = await supabase.storage
         .from(DOCUMENTS_BUCKET)
-        .upload(filePath, blob, { upsert: true });
+        .upload(filePath, blob, { upsert: true, cacheControl: '0', contentType: 'application/json' });
 
       if (uploadError) throw uploadError;
 
@@ -1051,11 +1161,12 @@ export default function WartungsprotokollDosieranlagen464() {
           .from(DOCUMENTS_TABLE)
           .update({
             file_name: fileName,
+            uploaded_at: new Date().toISOString(),
             file_type: 'application/json',
             file_size: blob.size
           })
           .eq('file_path', filePath);
-        
+
         if (updateError) throw updateError;
       } else {
         // INSERT
@@ -1068,10 +1179,11 @@ export default function WartungsprotokollDosieranlagen464() {
             file_size: blob.size,
             user_id: user.id
           });
-        
+
         if (insertError) throw insertError;
       }
 
+      markSaved();
       showToast('✅ In Storage gespeichert!', 'success');
     } catch (err: unknown) {
       showToast('Fehler beim Speichern: ' + (err as Error).message, 'error');
@@ -1080,164 +1192,479 @@ export default function WartungsprotokollDosieranlagen464() {
     }
   };
 
-  const savePdf = () => {
-    alert(t.pdfAlert);
-    setTimeout(() => window.print(), 300);
+  const handleLoad = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try { applyFormData(JSON.parse(ev.target?.result as string)); }
+      catch (err: unknown) { showToast(t.toastLoadError + (err as Error).message, 'error'); }
+    };
+    reader.readAsText(file); e.target.value = '';
   };
 
-  const openSigModal = (key: 'sig-gerlieva' | 'sig-kunde', label: string) => {
-    setSigModal({ show: true, key, label, existing: form.signatures[key] });
+  // ── Signature ──────────────────────────────────────────────────────────────
+  const handleSigClose = (id: 'sig-gerlieva' | 'sig-kunde', dataUrl?: string) => {
+    if (dataUrl) setForm(f => ({ ...f, signatures: { ...f.signatures, [id]: dataUrl } }));
+    setSigModal(null);
   };
+  const clearSig = (id: 'sig-gerlieva' | 'sig-kunde') =>
+    setForm(f => { const s = { ...f.signatures }; delete s[id]; return { ...f, signatures: s }; });
 
-  const closeSigModal = (dataUrl?: string) => {
-    if (dataUrl && sigModal.key) {
-      setForm(f => ({ ...f, signatures: { ...f.signatures, [sigModal.key]: dataUrl }, signatureDate: new Date().toLocaleDateString('de-DE') }));
-    }
-    setSigModal({ show: false, key: 'sig-gerlieva', label: '' });
-  };
+  // ── Computed ───────────────────────────────────────────────────────────────
+  const gesamtAZ        = calcGesamtMinutes(form.monteure);
+  const gesamtBreakdown = calcGesamtBreakdown(form.monteure);
 
-  const deleteSig = (key: 'sig-gerlieva' | 'sig-kunde') => {
-    setForm(f => {
-      const newSigs = { ...f.signatures };
-      delete newSigs[key];
-      return { ...f, signatures: newSigs };
-    });
-  };
+  // ── Styles ─────────────────────────────────────────────────────────────────
+  const cellStyle: React.CSSProperties = { border: '1px solid #000', padding: '1px 3px', verticalAlign: 'top', wordBreak: 'break-word', lineHeight: 1.3, fontSize: 8.5 };
+  const thStyle:   React.CSSProperties = { ...cellStyle, fontWeight: 'bold', textAlign: 'left' };
+  const inp = (extra?: React.CSSProperties): React.CSSProperties => ({
+    border: 'none', outline: 'none', width: '100%',
+    fontFamily: 'Arial, sans-serif', fontSize: 8, background: 'transparent', padding: 0, ...extra,
+  });
+  const tbtn = (bg: string): React.CSSProperties => ({
+    border: 'none', padding: '7px 12px', fontSize: 9, fontWeight: 'bold',
+    borderRadius: 3, cursor: 'pointer', fontFamily: 'Arial, sans-serif', color: '#fff', background: bg,
+    whiteSpace: 'nowrap', flexShrink: 0, minHeight: 32, touchAction: 'manipulation',
+    WebkitTapHighlightColor: 'transparent',
+  });
 
-  const tbtn = { background: '#3b5c8f', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: 4, fontSize: 13, cursor: 'pointer', fontFamily: 'Arial, sans-serif', whiteSpace: 'nowrap' as const, display: 'inline-flex', alignItems: 'center', gap: 6 };
-  const inp  = { fontFamily: 'Arial', fontSize: 11, padding: '2px 4px', border: '1px solid #aaa', borderRadius: 3 };
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Render
+  // ═══════════════════════════════════════════════════════════════════════════
   return (
     <>
       <style>{printStyles}</style>
-      <div className="no-print" ref={toolbarRef} style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999, background: '#1a2744', color: '#fff', padding: '6px 12px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, boxShadow: '0 2px 8px rgba(0,0,0,0.2)' }}>
-        <span className="toolbar-title" style={{ flex: '1 1 auto', fontWeight: 'bold', fontSize: 12, minWidth: 150 }}>{t.toolbarTitle}</span>
-        <LangSwitcher current={lang} onChange={setLang} />
-        <button onClick={() => window.location.href = '/'} style={{ ...tbtn, background: '#444' }}>{t.home}</button>
-        <button onClick={loadJson}  style={tbtn}>{t.loadJson}</button>
-        <button onClick={savePdf}   style={tbtn}>{t.savePdf}</button>
-        <button onClick={handleUploadToStorage} disabled={uploading} style={tbtn}>{uploading ? '⏳ Lädt...' : t.shareJson}</button>
+
+      {/* ── Toolbar ── */}
+      <div id="toolbar" className="no-print" style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999, background: '#1a2744', padding: '6px 10px', paddingLeft: 'max(10px, env(safe-area-inset-left))', paddingRight: 'max(10px, env(safe-area-inset-right))', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', boxSizing: 'border-box' }}>
+        <button onClick={() => fileInputRef.current?.click()} style={tbtn('#8e24aa')}>{t.loadJson}</button>
+        <button onClick={handlePdf}   style={tbtn('#e8460a')}>{t.savePdf}</button>
+        <button onClick={handleUploadToStorage} disabled={uploading} style={{ ...tbtn('#1a7a3a'), opacity: uploading ? 0.6 : 1 }}>{uploading ? '⏳ Lädt...' : t.shareJson}</button>
+        <button onClick={handleSave}  style={tbtn('#1a5fa8')}>{t.saveJson}</button>
+        <span className="toolbar-title" style={{ color: '#a8b8d8', fontSize: 9, flexShrink: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{t.toolbarTitle}</span>
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+          <LangSwitcher current={lang} onChange={setLang} />
+          <a href="/dokumente" onClick={confirmLeave} style={{ ...tbtn('#1a5fa8'), textDecoration: 'none' }}>{t.storageLink}</a>
+          <a href="/" onClick={confirmLeave} style={{ ...tbtn('#1a5fa8'), textDecoration: 'none' }}>{t.home}</a>
+        </div>
+        <input ref={fileInputRef} type="file" accept=".json,.txt" style={{ display: 'none' }} onChange={handleLoad} />
       </div>
-      <input ref={fileInputRef} type="file" accept="application/json" style={{ display: 'none' }} onChange={handleFileChange} />
-      <div id="page-wrapper" style={{ minHeight: '100vh', background: '#f9f9f9', padding: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, paddingTop: toolbarHeight + 12 }}>
-        <div className="a4" style={{ width: 794, background: 'white', padding: '16mm', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontFamily: 'Arial, sans-serif', fontSize: 11, lineHeight: 1.4, color: '#000' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 8 }}>
+
+      {/* ── Seiten ── */}
+      <div id="page-wrapper" style={{ marginTop: 56, padding: '8px', paddingLeft: 'max(8px, env(safe-area-inset-left))', paddingRight: 'max(8px, env(safe-area-inset-right))', paddingBottom: 'max(16px, env(safe-area-inset-bottom))', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20, boxSizing: 'border-box', minHeight: '100vh' }}>
+
+        {/* ══════════════ SEITE 1 ══════════════ */}
+        <div className="a4" style={{ width: 'min(210mm, 100%)', background: '#fff', padding: '10mm 11mm', boxShadow: '0 3px 16px rgba(0,0,0,.25)', boxSizing: 'border-box' }}>
+
+          {/* Überschrift */}
+          <h2 style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 8, fontFamily: 'Arial, sans-serif', color: '#000' }}>
+            {t.docTitle}
+          </h2>
+
+          {/* Kopftabelle */}
+          <table style={{ marginBottom: 0, width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+            <colgroup>
+              <col style={{ width: '13%' }} /><col style={{ width: '5%' }} /><col style={{ width: '18%' }} />
+              <col style={{ width: '10%' }} /><col style={{ width: '13%' }} /><col style={{ width: '4%' }} />
+              <col style={{ width: '8%' }} /><col style={{ width: '7%' }} /><col style={{ width: '6%' }} />
+            </colgroup>
             <tbody>
               <tr>
-                <td style={{ textAlign: 'left', verticalAlign: 'middle' }}>
-                  <div style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 2, color: '#1a2744' }}>{t.docTitle}</div>
-                  <div style={{ fontSize: 9, color: '#555' }}>Dosieranlagen 464</div>
+                <td rowSpan={3} style={{ border: '1px solid #000', verticalAlign: 'middle', textAlign: 'center', padding: 0, overflow: 'hidden' }}>
+                  <img src={LOGO_SRC} alt="Logo" style={{ height: 36, display: 'block', margin: '0 auto' }} />
                 </td>
-                <td style={{ textAlign: 'right', verticalAlign: 'middle' }}>
-                  <div style={{ fontWeight: 'bold', fontSize: 10, color: '#1a2744' }}>GERLIEVA Sprühtechnik GmbH</div>
-                  <div style={{ fontSize: 8.5, color: '#555', lineHeight: 1.3 }}>
-                    Gottfried-Schenker-Str. 1–3<br />
-                    76646 Bruchsal<br />
-                    +49 7251 9626-0
+                <td colSpan={6} style={{ border: '1px solid #000', padding: 1 }}></td>
+                <th colSpan={2} style={{ border: '1px solid #000', textAlign: 'right', fontWeight: 'bold', fontSize: 11 }}>{t.labelWartung}</th>
+              </tr>
+              <tr style={{ height: 18 }}>
+                <th style={thStyle}>{t.labelKunde}</th>
+                <td style={cellStyle}><input type="text" value={form.kunde}        onChange={e => setField('kunde', e.target.value)}        style={inp({ height: 16 })} /></td>
+                <th style={thStyle}>{t.labelArbeitsplatz}</th>
+                <td style={cellStyle}><input type="text" value={form.arbeitsplatz} onChange={e => setField('arbeitsplatz', e.target.value)} style={inp({ height: 16 })} maxLength={12} /></td>
+                <th style={thStyle}>{t.labelDgm}</th>
+                <td style={cellStyle}><input type="text" value={form.dgm}          onChange={e => setField('dgm', e.target.value)}          style={inp({ height: 16 })} /></td>
+                <th style={thStyle}>{t.labelPosition}</th>
+                <td style={{ ...cellStyle, width: 55 }}><input type="text" value={form.position} onChange={e => setField('position', e.target.value)} style={inp({ width: 52, height: 16 })} maxLength={8} /></td>
+              </tr>
+              <tr style={{ height: 18 }}>
+                <th style={thStyle}>{t.labelMaschinTyp}</th>
+                <td style={cellStyle}><input type="text" value={form.maschinTyp}  onChange={e => setField('maschinTyp', e.target.value)}  style={inp({ height: 16 })} /></td>
+                <th style={thStyle}>{t.labelMaschineNr}</th>
+                <td style={cellStyle}><input type="text" value={form.maschineNr}  onChange={e => setField('maschineNr', e.target.value)}  style={inp({ height: 16 })} maxLength={12} /></td>
+                <th style={thStyle}>{t.labelKom}</th>
+                <td style={cellStyle}><input type="text" value={form.kom}          onChange={e => setField('kom', e.target.value)}          style={inp({ height: 16 })} /></td>
+                <th style={thStyle}>{t.labelBaujahr}</th>
+                <td style={{ ...cellStyle, width: 72 }}>
+                  <input type="month" value={form.baujahr} onChange={e => setField('baujahr', e.target.value)}
+                    style={{ border: 'none', outline: 'none', fontFamily: 'Arial', fontSize: 7.5, background: 'transparent', color: '#000', colorScheme: 'light', padding: 0, width: 70, height: 16, cursor: 'pointer' }} />
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          {/* ── Aktueller Zustand ── */}
+          <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', marginTop: 4 }}>
+            <colgroup>
+              <col style={{ width: '47%' }} /><col style={{ width: '4%' }} />
+              <col style={{ width: '5%' }} /><col style={{ width: '44%' }} />
+            </colgroup>
+            <tbody>
+              {/* Divider-Zeile */}
+              <tr>
+                <td colSpan={4} style={{ background: '#cfdff5', fontWeight: 'bold', fontSize: 8, padding: '2px 4px', letterSpacing: '.03em', border: '1px solid #000' }}>
+                  {t.divAktZustand}
+                </td>
+              </tr>
+              {/* Menge pro Hub + Spülzeiten */}
+              <tr style={{ background: '#fff' }}>
+                <td colSpan={4} style={{ padding: '4px 6px', border: '1px solid #ccc' }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10, rowGap: 5 }}>
+                    {/* Menge pro Hub */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 8px', background: '#e8f0fe', border: '1px solid #4a6fa5', borderRadius: 4 }}>
+                      <span style={{ fontSize: 7.5, fontWeight: 'bold', color: '#1a2744', whiteSpace: 'nowrap' }}>{t.labelMengeHub}:</span>
+                      <input type="text" inputMode="decimal" value={form.istZustand.mengeHub}
+                        onChange={e => setForm(f => ({ ...f, istZustand: { ...f.istZustand, mengeHub: e.target.value } }))}
+                        style={{ width: 50, border: '1px solid #999', borderRadius: 2, fontSize: 9, textAlign: 'center', padding: '1px 2px', fontFamily: 'Arial', fontWeight: 'bold' }} />
+                      <span style={{ fontSize: 7.5 }}>{t.labelMengeHubUnit}</span>
+                    </div>
+                    {/* Eingestellte Mischung */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 8px', background: '#e8f0fe', border: '1px solid #4a6fa5', borderRadius: 4 }}>
+                      <span style={{ fontSize: 7.5, fontWeight: 'bold', color: '#1a2744', whiteSpace: 'nowrap' }}>Eingestellte Mischung:</span>
+                      <input type="text" inputMode="decimal" value={form.istZustand.mischung}
+                        onChange={e => setForm(f => ({ ...f, istZustand: { ...f.istZustand, mischung: e.target.value } }))}
+                        style={{ width: 50, border: '1px solid #999', borderRadius: 2, fontSize: 9, textAlign: 'center', padding: '1px 2px', fontFamily: 'Arial', fontWeight: 'bold' }} />
+                      <span style={{ fontSize: 7.5 }}>%</span>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+              {/* Bemerkungen-Zeile */}
+              <tr style={{ background: '#f3f3f3' }}>
+                <td colSpan={4} style={{ padding: '3px 6px', border: '1px solid #ccc' }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+                    <span style={{ fontSize: 7.5, fontWeight: 'bold', color: '#333', whiteSpace: 'nowrap', flexShrink: 0, paddingTop: 3 }}>{t.labelBemerkungen}:</span>
+                    <textarea
+                      value={form.istZustand.bemerkung ?? ''}
+                      onFocus={() => setBemExpanded(true)}
+                      onBlur={() => setBemExpanded(false)}
+                      onChange={e => setForm(f => ({ ...f, istZustand: { ...f.istZustand, bemerkung: e.target.value } }))}
+                      rows={bemExpanded ? 5 : 2}
+                      style={{ flex: 1, border: '1px solid #bbb', borderRadius: 2, fontSize: 7.5, padding: '3px 4px', fontFamily: 'Arial', resize: 'vertical', transition: 'height 0.15s ease', lineHeight: 1.4 }} />
                   </div>
                 </td>
               </tr>
             </tbody>
           </table>
-          <div style={{ borderTop: '2px solid #1a2744', marginBottom: 8 }} />
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 9.5, marginBottom: 8 }}>
-            <tbody>
-              <tr>
-                <td style={{ width: '20%', fontWeight: 'bold', padding: '2px 4px' }}>{t.labelKunde}:</td>
-                <td style={{ width: '30%', padding: '2px 0' }}><input type="text" value={form.kunde} onChange={e => setForm(f => ({ ...f, kunde: e.target.value }))} style={{ ...inp, width: '100%' }} /></td>
-                <td style={{ width: '20%', fontWeight: 'bold', padding: '2px 4px', textAlign: 'right' }}>{t.labelMaschinTyp}:</td>
-                <td style={{ width: '30%', padding: '2px 0' }}><input type="text" value={form.maschinTyp} onChange={e => setForm(f => ({ ...f, maschinTyp: e.target.value }))} style={{ ...inp, width: '100%' }} /></td>
-              </tr>
-              <tr>
-                <td style={{ fontWeight: 'bold', padding: '2px 4px' }}>{t.labelArbeitsplatz}:</td>
-                <td style={{ padding: '2px 0' }}><input type="text" value={form.arbeitsplatz} onChange={e => setForm(f => ({ ...f, arbeitsplatz: e.target.value }))} style={{ ...inp, width: '100%' }} /></td>
-                <td style={{ fontWeight: 'bold', padding: '2px 4px', textAlign: 'right' }}>{t.labelMaschineNr}:</td>
-                <td style={{ padding: '2px 0' }}><input type="text" value={form.maschineNr} onChange={e => setForm(f => ({ ...f, maschineNr: e.target.value }))} style={{ ...inp, width: '100%' }} /></td>
-              </tr>
-              <tr>
-                <td style={{ fontWeight: 'bold', padding: '2px 4px' }}>{t.labelDgm}:</td>
-                <td style={{ padding: '2px 0' }}><input type="text" value={form.dgm} onChange={e => setForm(f => ({ ...f, dgm: e.target.value }))} style={{ ...inp, width: '100%' }} /></td>
-                <td style={{ fontWeight: 'bold', padding: '2px 4px', textAlign: 'right' }}>{t.labelKom}:</td>
-                <td style={{ padding: '2px 0' }}><input type="text" value={form.kom} onChange={e => setForm(f => ({ ...f, kom: e.target.value }))} style={{ ...inp, width: '100%' }} /></td>
-              </tr>
-              <tr>
-                <td style={{ fontWeight: 'bold', padding: '2px 4px' }}>{t.labelPosition}:</td>
-                <td style={{ padding: '2px 0' }}><input type="text" value={form.position} onChange={e => setForm(f => ({ ...f, position: e.target.value }))} style={{ ...inp, width: '100%' }} /></td>
-                <td style={{ fontWeight: 'bold', padding: '2px 4px', textAlign: 'right' }}>{t.labelBaujahr}:</td>
-                <td style={{ padding: '2px 0' }}><input type="text" value={form.baujahr} onChange={e => setForm(f => ({ ...f, baujahr: e.target.value }))} style={{ ...inp, width: '100%' }} /></td>
-              </tr>
-            </tbody>
-          </table>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 9.5, marginBottom: 10 }}>
+
+          {/* Prüftabelle Seite 1 */}
+          <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+            <colgroup>
+              <col style={{ width: '47%' }} /><col style={{ width: '4%' }} />
+              <col style={{ width: '5%' }} /><col style={{ width: '44%' }} />
+            </colgroup>
             <thead>
-              <tr style={{ background: '#cfdff5' }}>
-                <th style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'left', fontSize: 8.5 }}>{t.colPruefpunkt}</th>
-                <th style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'center', fontSize: 8.5, width: 20 }}>{t.colOk}</th>
-                <th style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'left', fontSize: 8.5, width: '16%' }}>{t.colName}</th>
-                <th style={{ border: '1px solid #000', padding: '3px 4px', textAlign: 'left', fontSize: 8.5, width: '24%' }}>{t.colBemerkung}</th>
+              <tr>
+                <th style={thStyle}><strong>{t.colPruefpunkt}</strong></th>
+                <th style={{ ...thStyle, textAlign: 'center', fontSize: 7.5 }}>{t.colOk}</th>
+                <th style={{ ...thStyle, textAlign: 'center', fontSize: 7.5 }}>{t.colName}</th>
+                <th style={{ ...thStyle, fontSize: 7 }}>{t.colBemerkung}</th>
               </tr>
             </thead>
             <tbody>
-              {alleZeilen.map((zeile, idx) => (
-                <PruefZeile key={idx} zeile={zeile} state={form.zeilenState[idx]} onChange={upd => setForm(f => { const zs = [...f.zeilenState]; zs[idx] = { ...zs[idx], ...upd }; return { ...f, zeilenState: zs }; })} rowIndex={idx} t={t} />
-              ))}
-            </tbody>
-          </table>
-          <div style={{ marginTop: 12, marginBottom: 8, fontWeight: 'bold', fontSize: 10, borderTop: '1px solid #999', paddingTop: 6 }}>{t.sectionMaterial}</div>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 8.5 }}>
-            <thead>
-              <tr style={{ background: '#e9ecef' }}>
-                <th style={{ border: '1px solid #000', padding: '2px', textAlign: 'center', width: '6%' }}>{t.thPos}</th>
-                <th style={{ border: '1px solid #000', padding: '2px', textAlign: 'left' }}>{t.thBeschreibung}</th>
-                <th style={{ border: '1px solid #000', padding: '2px', textAlign: 'left', width: '22%' }}>{t.thTeilenummer}</th>
-                <th style={{ border: '1px solid #000', padding: '2px', textAlign: 'center', width: '8%' }}>{t.thStk}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {form.material.map((row, idx) => (
-                <tr key={idx}>
-                  <td style={{ border: '1px solid #000', padding: '1px 2px', textAlign: 'center' }}><input type="text" value={row.pos} onChange={e => setForm(f => { const mat = [...f.material]; mat[idx].pos = e.target.value; return { ...f, material: mat }; })} style={{ border: 'none', outline: 'none', width: '100%', fontSize: 8, textAlign: 'center', fontFamily: 'Arial', background: 'transparent' }} /></td>
-                  <td style={{ border: '1px solid #000', padding: '1px 2px' }}><input type="text" value={row.beschreibung} onChange={e => setForm(f => { const mat = [...f.material]; mat[idx].beschreibung = e.target.value; return { ...f, material: mat }; })} style={{ border: 'none', outline: 'none', width: '100%', fontSize: 8, fontFamily: 'Arial', background: 'transparent' }} /></td>
-                  <td style={{ border: '1px solid #000', padding: '1px 2px' }}><input type="text" value={row.teilenummer} onChange={e => setForm(f => { const mat = [...f.material]; mat[idx].teilenummer = e.target.value; return { ...f, material: mat }; })} style={{ border: 'none', outline: 'none', width: '100%', fontSize: 8, fontFamily: 'Arial', background: 'transparent' }} /></td>
-                  <td style={{ border: '1px solid #000', padding: '1px 2px', textAlign: 'center' }}><input type="text" value={row.stk} onChange={e => setForm(f => { const mat = [...f.material]; mat[idx].stk = e.target.value; return { ...f, material: mat }; })} style={{ border: 'none', outline: 'none', width: '100%', fontSize: 8, textAlign: 'center', fontFamily: 'Arial', background: 'transparent' }} /></td>
-                </tr>
+              {alleZeilen.map((z, i) => (
+                <PruefZeile key={i} zeile={z}
+                  state={form.zeilenState[i] ?? { ck: 0, name: '', bem: '', value: '', extra: 0 }}
+                  onChange={p => setZeile(i, p)} rowIndex={i} t={t} />
               ))}
             </tbody>
           </table>
         </div>
-        <div className="a4" style={{ width: 794, background: 'white', padding: '16mm', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontFamily: 'Arial, sans-serif', fontSize: 10, lineHeight: 1.4, color: '#000', paddingTop: 6 }}>
-          <div style={{ fontSize: 12, fontWeight: 'bold', marginBottom: 8, color: '#1a2744' }}>{t.sectionSign}</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 8 }}>
-            <div>
-              <div style={{ fontSize: 9, fontWeight: 'bold', marginBottom: 4 }}>{t.sigGerlieva}</div>
-              <SigPreview dataUrl={form.signatures['sig-gerlieva']} onClick={() => openSigModal('sig-gerlieva', t.sigGerlieva)} tapLabel={t.sigTap} />
-              {form.signatures['sig-gerlieva'] && (
-                <div style={{ marginTop: 4 }}>
-                  <input type="text" placeholder={t.sigPlaceholderTech} value={form.nameGerlieva} onChange={e => setForm(f => ({ ...f, nameGerlieva: e.target.value }))} style={{ ...inp, width: 'calc(100% - 40px)', fontSize: 9 }} />
-                  <button onClick={() => deleteSig('sig-gerlieva')} style={{ marginLeft: 4, padding: '2px 6px', fontSize: 9, background: '#e74c3c', color: '#fff', border: 'none', borderRadius: 3, cursor: 'pointer' }}>{t.sigDelete}</button>
+
+        {/* ══════════════ SEITE 2: Fuß + Unterschriften ══════════════ */}
+        <div className="a4" style={{ width: 'min(210mm, 100%)', background: '#fff', padding: '10mm 11mm', boxShadow: '0 3px 16px rgba(0,0,0,.25)', boxSizing: 'border-box', overflow: 'hidden' }}>
+
+          {/* Zeitenerfassung – pro Monteur ein Block */}
+          <div style={{ marginBottom: 10 }}>
+
+            {/* Monteur-Stepper */}
+            <div className="no-print" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <span style={{ fontSize: 9, fontWeight: 'bold' }}>{t.labelMonteur}:</span>
+              <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #aaa', borderRadius: 4, overflow: 'hidden' }}>
+                <button
+                  onClick={removeMonteur}
+                  disabled={form.monteure.length <= 1}
+                  style={{
+                    width: 28, height: 24, fontSize: 16, lineHeight: 1, border: 'none', borderRight: '1px solid #aaa',
+                    background: form.monteure.length > 1 ? '#fdd' : '#eee',
+                    color: form.monteure.length > 1 ? '#900' : '#aaa',
+                    cursor: form.monteure.length > 1 ? 'pointer' : 'default', fontFamily: 'Arial',
+                  }}>−</button>
+                <span style={{ minWidth: 28, textAlign: 'center', fontSize: 11, fontWeight: 'bold', padding: '0 6px', userSelect: 'none' }}>
+                  {form.monteure.length}
+                </span>
+                <button
+                  onClick={addMonteur}
+                  style={{
+                    width: 28, height: 24, fontSize: 16, lineHeight: 1, border: 'none', borderLeft: '1px solid #aaa',
+                    background: '#e8f0ff', color: '#226', cursor: 'pointer', fontFamily: 'Arial',
+                  }}>+</button>
+              </div>
+            </div>
+
+            {form.monteure.map((monteur, mi) => {
+              const monteurTotal = monteur.tage.reduce((sum, tag) => sum + calcNettoMin(tag), 0);
+              return (
+                <div key={mi} style={{ marginBottom: 8, border: '1px solid #000', borderRadius: 2 }}>
+                  {/* Monteur-Kopfzeile */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#cfdff5', padding: '3px 6px', borderBottom: '1px solid #000' }}>
+                    <strong style={{ fontSize: 8, whiteSpace: 'nowrap' }}>{t.labelMonteur} {mi + 1}:</strong>
+                    <input
+                      type="text"
+                      value={monteur.name}
+                      onChange={e => setMonteurName(mi, e.target.value)}
+                      style={{ flex: 1, border: 'none', borderBottom: '1px solid #666', outline: 'none', fontFamily: 'Arial', fontSize: 9, fontWeight: 'bold', background: 'transparent', padding: '1px 2px' }}
+                    />
+                    {monteurTotal > 0 && (
+                      <span style={{ fontSize: 8, fontWeight: 'bold', background: '#e8f4e8', padding: '1px 6px', borderRadius: 3, border: '1px solid #aaa', whiteSpace: 'nowrap' }}>
+                        Σ {formatMin(monteurTotal)}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Tageszeilen */}
+                  <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+                    <colgroup>
+                      <col style={{ width: '16%' }} />
+                      <col style={{ width: '14%' }} />
+                      <col style={{ width: '14%' }} />
+                      <col style={{ width: '11%' }} />
+                      <col style={{ width: '16%' }} />
+                      <col style={{ width: '25%' }} />
+                    </colgroup>
+                    {mi === 0 && (
+                      <thead>
+                        <tr>
+                          <th style={{ ...thStyle, textAlign: 'center', fontSize: 7.5, background: '#e0e0e0' }}>{t.thDatum}</th>
+                          <th style={{ ...thStyle, textAlign: 'center', fontSize: 7.5, background: '#e0e0e0' }}>{t.thAzVon}</th>
+                          <th style={{ ...thStyle, textAlign: 'center', fontSize: 7.5, background: '#e0e0e0' }}>{t.thAzBis}</th>
+                          <th style={{ ...thStyle, textAlign: 'center', fontSize: 7.5, background: '#e0e0e0' }}>{t.thPause}</th>
+                          <th style={{ ...thStyle, textAlign: 'center', fontSize: 7.5, background: '#e0f0e0' }}>{t.labelGesamtAZ}</th>
+                          <th style={{ ...thStyle, textAlign: 'center', fontSize: 7.5, background: '#e0e0e0' }}>{t.thTagTyp}</th>
+                        </tr>
+                      </thead>
+                    )}
+                    <tbody>
+                      {monteur.tage.map((tag, ti) => {
+                        const netto = calcNettoMin(tag);
+                        return (
+                          <tr key={ti} style={{ background: ti % 2 === 0 ? '#fff' : '#f8f8f8' }}>
+                            <td style={{ ...cellStyle, fontSize: 8 }}>
+                              <input type="date" value={tag.datum} onChange={e => setMontagTag(mi, ti, 'datum', e.target.value)}
+                                style={{ ...inp(), fontSize: 7.5, cursor: 'pointer', colorScheme: 'light', color: '#000' }} />
+                            </td>
+                            <td style={{ ...cellStyle, fontSize: 8, textAlign: 'center' }}>
+                              <input type="time" value={tag.vonZeit} onChange={e => setMontagTag(mi, ti, 'vonZeit', e.target.value)}
+                                style={{ ...inp(), textAlign: 'center', cursor: 'pointer', colorScheme: 'light', color: '#000' }} />
+                            </td>
+                            <td style={{ ...cellStyle, fontSize: 8, textAlign: 'center' }}>
+                              <input type="time" value={tag.bisZeit} onChange={e => setMontagTag(mi, ti, 'bisZeit', e.target.value)}
+                                style={{ ...inp(), textAlign: 'center', cursor: 'pointer', colorScheme: 'light', color: '#000' }} />
+                            </td>
+                            <td style={{ ...cellStyle, fontSize: 8, textAlign: 'center' }}>
+                              <input type="number" min={0} value={tag.pauseMin} onChange={e => setMontagTag(mi, ti, 'pauseMin', e.target.value)}
+                                style={{ ...inp(), textAlign: 'center' }} />
+                            </td>
+                            <td style={{ ...cellStyle, fontSize: 8, textAlign: 'center', fontWeight: 'bold', background: ti % 2 === 0 ? '#e8f4e8' : '#daeeda' }}>
+                              {formatMin(netto)}
+                            </td>
+                            <td style={{ ...cellStyle, padding: 2 }}>
+                              {(() => {
+                                const bgMap: Record<string, string> = {
+                                  '': ti % 2 === 0 ? '#fff' : '#f8f8f8',
+                                  feiertag: '#fff3cd',
+                                  samstag:  '#ddeeff',
+                                  sonntag:  '#fde8e8',
+                                };
+                                return (
+                                  <select
+                                    value={tag.tagTyp}
+                                    onChange={e => setMontagTag(mi, ti, 'tagTyp', e.target.value)}
+                                    style={{
+                                      width: '100%', border: 'none', outline: 'none', fontFamily: 'Arial',
+                                      fontSize: 7.5, background: bgMap[tag.tagTyp], cursor: 'pointer',
+                                      padding: '1px 2px', borderRadius: 2,
+                                    }}>
+                                    <option value="">{t.tagTypNormal}</option>
+                                    <option value="feiertag">{t.tagTypFeiertag}</option>
+                                    <option value="samstag">{t.tagTypSamstag}</option>
+                                    <option value="sonntag">{t.tagTypSonntag}</option>
+                                  </select>
+                                );
+                              })()}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+
+                  {/* + Tag / - Tag Buttons */}
+                  <div className="no-print" style={{ padding: '3px 6px', display: 'flex', gap: 4 }}>
+                    <button onClick={() => addTag(mi)}
+                      style={{ fontSize: 8, padding: '2px 10px', background: '#e8f0ff', border: '1px solid #99b', borderRadius: 3, cursor: 'pointer', fontFamily: 'Arial' }}>
+                      {t.btnTagHinzu}
+                    </button>
+                    <button onClick={() => removeTag(mi, monteur.tage.length - 1)}
+                      disabled={monteur.tage.length <= 1}
+                      style={{ fontSize: 8, padding: '2px 10px', background: monteur.tage.length > 1 ? '#fdd' : '#eee', border: '1px solid #bbb', borderRadius: 3, cursor: monteur.tage.length > 1 ? 'pointer' : 'default', color: monteur.tage.length > 1 ? '#900' : '#999', fontFamily: 'Arial' }}>
+                      {t.btnTagEntf2}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Gesamt-Summe */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10, marginTop: 6, padding: '5px 8px', border: '1px solid #aaa', borderRadius: 4, background: '#f7f7f7' }}>
+              {/* Gesamt */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                <strong style={{ fontSize: 9 }}>{t.labelGesamtAZ}</strong>
+                <span style={{ fontWeight: 'bold', fontSize: 10, background: '#e8f4e8', padding: '2px 10px', borderRadius: 3, border: '1px solid #aaa' }}>
+                  {gesamtAZ}
+                </span>
+              </div>
+              {/* Samstag – nur wenn > 0 */}
+              {gesamtBreakdown.samstag > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <span style={{ fontSize: 8, color: '#555' }}>{t.tagTypSamstag}:</span>
+                  <span style={{ fontWeight: 'bold', fontSize: 9, background: '#ddeeff', padding: '2px 8px', borderRadius: 3, border: '1px solid #99bbdd' }}>
+                    {formatMin(gesamtBreakdown.samstag)}
+                  </span>
                 </div>
               )}
-            </div>
-            <div>
-              <div style={{ fontSize: 9, fontWeight: 'bold', marginBottom: 4 }}>{t.sigKunde}</div>
-              <SigPreview dataUrl={form.signatures['sig-kunde']} onClick={() => openSigModal('sig-kunde', t.sigKunde)} tapLabel={t.sigTap} />
-              {form.signatures['sig-kunde'] && (
-                <div style={{ marginTop: 4 }}>
-                  <input type="text" placeholder={t.sigPlaceholderKunde} value={form.nameKunde} onChange={e => setForm(f => ({ ...f, nameKunde: e.target.value }))} style={{ ...inp, width: 'calc(100% - 40px)', fontSize: 9 }} />
-                  <button onClick={() => deleteSig('sig-kunde')} style={{ marginLeft: 4, padding: '2px 6px', fontSize: 9, background: '#e74c3c', color: '#fff', border: 'none', borderRadius: 3, cursor: 'pointer' }}>{t.sigDelete}</button>
+              {/* Sonntag – nur wenn > 0 */}
+              {gesamtBreakdown.sonntag > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <span style={{ fontSize: 8, color: '#555' }}>{t.tagTypSonntag}:</span>
+                  <span style={{ fontWeight: 'bold', fontSize: 9, background: '#fde8e8', padding: '2px 8px', borderRadius: 3, border: '1px solid #ddaaaa' }}>
+                    {formatMin(gesamtBreakdown.sonntag)}
+                  </span>
+                </div>
+              )}
+              {/* Feiertag – nur wenn > 0 */}
+              {gesamtBreakdown.feiertag > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <span style={{ fontSize: 8, color: '#555' }}>{t.tagTypFeiertag}:</span>
+                  <span style={{ fontWeight: 'bold', fontSize: 9, background: '#fff3cd', padding: '2px 8px', borderRadius: 3, border: '1px solid #ddcc88' }}>
+                    {formatMin(gesamtBreakdown.feiertag)}
+                  </span>
+                </div>
+              )}
+              {/* Nachtstunden – nur wenn > 0 */}
+              {gesamtBreakdown.nacht > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <span style={{ fontSize: 8, color: '#555' }}>{t.tagTypNacht}:</span>
+                  <span style={{ fontWeight: 'bold', fontSize: 9, background: '#e8e0f8', padding: '2px 8px', borderRadius: 3, border: '1px solid #aa99cc' }}>
+                    {formatMin(gesamtBreakdown.nacht)}
+                  </span>
                 </div>
               )}
             </div>
           </div>
-          {form.signatureDate && (
-            <div style={{ fontSize: 9, color: '#666', marginTop: 6 }}>
-              {t.labelDatum} {form.signatureDate}
+
+          {/* Teileliste */}
+          <div style={{ marginTop: 12, border: '1px solid #000', padding: 10 }}>
+            <strong style={{ fontSize: 9, letterSpacing: '.03em' }}>{t.sectionMaterial}</strong>
+            <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 6 }}>
+                <thead>
+                  <tr>
+                    <th style={{ border: '1px solid #000', padding: '2px 4px', textAlign: 'center', background: '#e0e0e0', fontWeight: 'bold', fontSize: 8, width: 40 }}>{t.thPos}</th>
+                    <th style={{ border: '1px solid #000', padding: '2px 4px', textAlign: 'center', background: '#e0e0e0', fontWeight: 'bold', fontSize: 8 }}>{t.thBeschreibung}</th>
+                    <th style={{ border: '1px solid #000', padding: '2px 4px', textAlign: 'center', background: '#e0e0e0', fontWeight: 'bold', fontSize: 8, width: 100 }}>{t.thTeilenummer}</th>
+                    <th style={{ border: '1px solid #000', padding: '2px 4px', textAlign: 'center', background: '#e0e0e0', fontWeight: 'bold', fontSize: 8, width: 40 }}>{t.thStk}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {form.material.map((row, i) => (
+                    <tr key={i} style={{ background: i % 2 === 0 ? '#fff' : '#f3f3f3' }}>
+                      {(['pos', 'beschreibung', 'teilenummer', 'stk'] as (keyof MaterialRow)[]).map(f => (
+                        <td key={f} style={{ border: '1px solid #000', padding: '1px 3px', fontSize: 8 }}>
+                          <input type="text" value={row[f]} onChange={e => setMaterial(i, f, e.target.value)}
+                            style={{ width: '100%', border: 'none', outline: 'none', padding: 1, background: 'transparent', color: '#000', fontSize: 8, fontFamily: 'Arial' }} />
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          )}
+          </div>
+
+          {/* Unterschriften */}
+          <div style={{ marginTop: 12, border: '1px solid #000', padding: 10, boxSizing: 'border-box' }}>
+            <strong style={{ fontSize: 9, letterSpacing: '.03em' }}>{t.sectionSign}</strong>
+            <div style={{ display: 'flex', gap: 12, marginTop: 10, width: '100%', boxSizing: 'border-box', overflow: 'hidden' }}>
+              {(['sig-gerlieva', 'sig-kunde'] as const).map(id => {
+                const isGerlieva  = id === 'sig-gerlieva';
+                const label       = isGerlieva ? t.sigGerlieva : t.sigKunde;
+                const nameKey     = isGerlieva ? 'nameGerlieva' : 'nameKunde';
+                const placeholder = isGerlieva ? t.sigPlaceholderTech : t.sigPlaceholderKunde;
+                return (
+                  <div key={id} style={{ flex: '1 1 0', minWidth: 0, border: '1px solid #ccc', borderRadius: 4, padding: 8, background: '#fafafa', boxSizing: 'border-box', overflow: 'hidden' }}>
+                    <div style={{ fontSize: 8, fontWeight: 'bold', marginBottom: 4 }}>{label}</div>
+                    <SigPreview dataUrl={form.signatures[id]} onClick={() => setSigModal({ id, label })} tapLabel={t.sigTap} />
+                    <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <input type="text" value={form[nameKey]} onChange={e => setField(nameKey, e.target.value)}
+                        placeholder={placeholder}
+                        style={{ flex: 1, border: 'none', borderBottom: '1px solid #aaa', outline: 'none', fontSize: 7.5, background: 'transparent', fontFamily: 'Arial' }} />
+                      <button onClick={() => clearSig(id)}
+                        style={{ fontSize: 7, padding: '2px 6px', background: '#eee', border: '1px solid #bbb', borderRadius: 3, cursor: 'pointer' }}>
+                        {t.sigDelete}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{ textAlign: 'center', marginTop: 12, fontWeight: 'bold', fontSize: 11 }}>
+              {t.labelDatum}{' '}
+              <input type="date" value={form.signatureDate} onChange={e => setField('signatureDate', e.target.value)}
+                style={{ border: '1px solid #ccc', padding: '4px 8px', borderRadius: 4, fontSize: 11, colorScheme: 'light', color: '#000' }} />
+            </div>
+          </div>
+
         </div>
       </div>
-      {sigModal.show && <SignatureModal label={sigModal.label} existing={sigModal.existing} onClose={closeSigModal} t={t} />}
+
+      {/* ── Modals & Notifications ── */}
+      {/* ── Verlassen mit ungespeicherten Änderungen ── */}
+      {leaveTarget && (
+        <div className="no-print" onClick={() => setLeaveTarget(null)}
+          style={{ position: 'fixed', inset: 0, zIndex: 100000, background: 'rgba(0,0,0,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div role="dialog" aria-modal="true" onClick={e => e.stopPropagation()}
+            style={{ background: '#fff', color: '#000', borderRadius: 8, padding: '18px 18px 14px', width: 'min(420px, 100%)', boxShadow: '0 8px 30px rgba(0,0,0,.35)', fontFamily: 'Arial, sans-serif' }}>
+            <div style={{ fontSize: 15, fontWeight: 'bold', marginBottom: 6 }}>⚠️ {t.leaveTitle}</div>
+            <div style={{ fontSize: 13, color: '#444', marginBottom: 16 }}>{t.leaveText}</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <button onClick={saveAndLeave} disabled={uploading}
+                style={{ border: 'none', borderRadius: 4, padding: '11px 14px', minHeight: 44, fontSize: 13, fontWeight: 'bold', color: '#fff', cursor: 'pointer', background: '#1a7a3a', fontFamily: 'Arial, sans-serif' }}>{t.leaveSave}</button>
+              <button onClick={() => leaveNow(leaveTarget)}
+                style={{ border: 'none', borderRadius: 4, padding: '11px 14px', minHeight: 44, fontSize: 13, fontWeight: 'bold', color: '#fff', cursor: 'pointer', background: '#c53a08', fontFamily: 'Arial, sans-serif' }}>{t.leaveDiscard}</button>
+              <button onClick={() => setLeaveTarget(null)}
+                style={{ border: '1px solid #bbb', borderRadius: 4, padding: '11px 14px', minHeight: 44, fontSize: 13, fontWeight: 'bold', color: '#333', cursor: 'pointer', background: '#f2f2f2', fontFamily: 'Arial, sans-serif' }}>{t.leaveCancel}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {sigModal && (
+        <SignatureModal label={sigModal.label} existing={form.signatures[sigModal.id]}
+          onClose={dataUrl => handleSigClose(sigModal.id, dataUrl)} t={t} />
+      )}
       <Toast msg={toast.msg} type={toast.type} visible={toast.visible} />
     </>
   );
 }
+

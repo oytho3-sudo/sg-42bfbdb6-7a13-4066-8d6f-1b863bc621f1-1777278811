@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { SEO } from "@/components/SEO";
-import { FileText } from "lucide-react";
+import { FileText, FolderOpen } from "lucide-react";
 
 export default function Home() {
   return (
@@ -23,7 +23,7 @@ export default function Home() {
               </p>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-4 justify-center pt-8">
+            <div className="flex flex-col sm:flex-row sm:flex-wrap gap-4 justify-center pt-8">
               <Link href="/ServiceberichtPage">
                 <Button 
                   size="lg" 
@@ -42,6 +42,17 @@ export default function Home() {
                 >
                   <FileText className="mr-2 h-5 w-5" />
                   Protokolle
+                </Button>
+              </Link>
+
+              <Link href="/dokumente">
+                <Button 
+                  size="lg" 
+                  variant="outline"
+                  className="w-full sm:w-auto text-lg px-8 py-6 border-2 hover:bg-magenta/10 hover:border-magenta shadow-lg hover:shadow-xl transition-all"
+                >
+                  <FolderOpen className="mr-2 h-5 w-5" />
+                  Storage/Dokumente
                 </Button>
               </Link>
 

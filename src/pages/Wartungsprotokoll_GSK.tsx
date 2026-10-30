@@ -2,11 +2,13 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
 
 // Bucket und Tabellen-Namen
 const DOCUMENTS_BUCKET = 'documents';
-const DOCUMENTS_TABLE = 'documents';
+const DOCUMENTS_TABLE  = 'documents';
+
+// Dokumenttyp – muss zur routeMap in pages/dokumente.tsx passen
+const DOKUMENT_TYP = 'gskwartung' as const;
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // i18n
@@ -89,6 +91,12 @@ const translations = {
     druckLuft:      'Luft:',
     techPlaceholder:'________________',
     home:           '🏠 Home',
+    storageLink:    '🗄 Storage/Dokumente',
+    leaveTitle:     'Ungespeicherte Änderungen',
+    leaveText:      'Das Protokoll wurde seit dem letzten Speichern geändert.',
+    leaveSave:      '💾 In Storage speichern & weiter',
+    leaveDiscard:   'Ohne Speichern weiter',
+    leaveCancel:    'Abbrechen (im Protokoll bleiben)',
     labelWartungShare: 'Wartungsprotokoll GERLIEVA',
     sectionMaterial:'Material- und Teileliste',
     thPos:          'Pos.',
@@ -131,7 +139,7 @@ const translations = {
   en: {
     loadJson:       '📂 Load JSON',
     savePdf:        '⬇ Save as PDF',
-    shareJson:      '📤 Share JSON',
+    shareJson:      '📤 Save to storage',
     saveJson:       '💾 Save JSON',
     toolbarTitle:   'Maintenance Log GSK · GERLIEVA Sprühtechnik GmbH',
     pdfAlert:       'In the print dialog:\n1. Printer → "Save as PDF"\n2. More settings → enable "Background graphics" ✓\n→ This ensures all colours appear in the PDF.',
@@ -202,6 +210,12 @@ const translations = {
     druckLuft:      'Air:',
     techPlaceholder:'________________',
     home:           '🏠 Home',
+    storageLink:    '🗄 Storage/Documents',
+    leaveTitle:     'Unsaved changes',
+    leaveText:      'The protocol has been changed since it was last saved.',
+    leaveSave:      '💾 Save to storage & continue',
+    leaveDiscard:   'Continue without saving',
+    leaveCancel:    'Cancel (stay in protocol)',
     labelWartungShare: 'Maintenance Log GERLIEVA',
     sectionMaterial:'Materials & Parts List',
     thPos:          'Pos.',
@@ -242,7 +256,7 @@ const translations = {
   fr: {
     loadJson:       '📂 Charger JSON',
     savePdf:        '⬇ Enregistrer en PDF',
-    shareJson:      '📤 Partager JSON',
+    shareJson:      '📤 Enregistrer dans le stockage',
     saveJson:       '💾 Sauvegarder JSON',
     toolbarTitle:   'Protocole de maintenance GSK · GERLIEVA Sprühtechnik GmbH',
     pdfAlert:       "Dans la boîte de dialogue d'impression :\n1. Imprimante → \"Enregistrer en PDF\"\n2. Paramètres → activer \"Graphiques d'arrière-plan\" ✓\n→ Toutes les couleurs apparaîtront dans le PDF.",
@@ -313,6 +327,12 @@ const translations = {
     druckLuft:      'Air :',
     techPlaceholder:'________________',
     home:           '🏠 Accueil',
+    storageLink:    '🗄 Storage/Documents',
+    leaveTitle:     'Modifications non enregistrées',
+    leaveText:      'Le protocole a été modifié depuis le dernier enregistrement.',
+    leaveSave:      '💾 Enregistrer dans le stockage et continuer',
+    leaveDiscard:   'Continuer sans enregistrer',
+    leaveCancel:    'Annuler (rester dans le protocole)',
     labelWartungShare: 'Protocole de maintenance GERLIEVA',
     sectionMaterial:'Liste des matériaux et pièces',
     thPos:          'Pos.',
@@ -547,10 +567,20 @@ function calcGesamtBreakdown(monteure: Monteur[]): { total: number; samstag: num
   return { total, samstag, sonntag, feiertag, nacht };
 }
 
-function buildFileName(ext: string, maschineNr: string): string {
-  const nr = maschineNr.trim().replace(/[^a-zA-Z0-9_\-]/g, '_');
-  const d  = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-  return (nr ? `Wartungsprotokoll_${nr}_${d}` : `Wartungsprotokoll_${d}`) + '.' + ext;
+// Teil des Dateinamens: Umlaute umschreiben, Sonderzeichen → "_"
+function safeNamePart(v: string): string {
+  return (v || '').trim()
+    .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue')
+    .replace(/Ä/g, 'Ae').replace(/Ö/g, 'Oe').replace(/Ü/g, 'Ue').replace(/ß/g, 'ss')
+    .replace(/[^a-zA-Z0-9_\-]+/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+}
+
+// Dateiname = Protokolltyp + Kunde + Nummer (ohne Datum) → dasselbe Protokoll
+// landet immer in derselben Datei und wird beim Speichern überschrieben.
+function buildFileName(ext: string, kunde: string, nummer: string): string {
+  const parts = ['Wartungsprotokoll_GSK', safeNamePart(kunde), safeNamePart(nummer)].filter(Boolean);
+  if (parts.length === 1) parts.push(new Date().toISOString().slice(0, 10).replace(/-/g, '')); // nur Fallback für lokalen Download ohne Angaben
+  return parts.join('_') + '.' + ext;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -646,8 +676,12 @@ function SignatureModal({ label, existing, onClose, t }: SigModalProps) {
     const resize = () => {
       const container = canvas.parentElement!;
       const dpr = window.devicePixelRatio || 1;
-      const w = Math.max(container.clientWidth - 16, 100);
-      const h = Math.max(container.clientHeight - 16, 80);
+      const maxW = Math.max(container.clientWidth - 16, 100);
+      const maxH = Math.max(container.clientHeight - 16, 80);
+      // Gleiches Seitenverhältnis wie das Unterschriftsfeld (4:1) – sonst wird die
+      // Unterschrift beim Einpassen gestaucht und erscheint nur noch als dünne Punkte.
+      const w = Math.min(maxW, maxH * 4);
+      const h = w / 4;
       // Aktuellen Inhalt retten bevor Canvas-Größe geändert wird
       const tmp = document.createElement('canvas');
       tmp.width = canvas.width; tmp.height = canvas.height;
@@ -686,7 +720,7 @@ function SignatureModal({ label, existing, onClose, t }: SigModalProps) {
     return { x: (src.clientX - r.left) * scaleX, y: (src.clientY - r.top) * scaleY };
   };
   const onStart = (e: React.MouseEvent | React.TouchEvent) => { e.preventDefault(); drawing.current = true; const c = canvasRef.current!; const ctx = c.getContext('2d')!; const p = getPos(e, c); ctx.beginPath(); ctx.moveTo(p.x, p.y); };
-  const onMove  = (e: React.MouseEvent | React.TouchEvent) => { e.preventDefault(); if (!drawing.current) return; const c = canvasRef.current!; const ctx = c.getContext('2d')!; const p = getPos(e, c); ctx.lineTo(p.x, p.y); ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.stroke(); };
+  const onMove  = (e: React.MouseEvent | React.TouchEvent) => { e.preventDefault(); if (!drawing.current) return; const c = canvasRef.current!; const ctx = c.getContext('2d')!; const p = getPos(e, c); ctx.lineTo(p.x, p.y); ctx.strokeStyle = '#000'; ctx.lineWidth = Math.max(2, c.width / (window.devicePixelRatio || 1) / 150); ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.stroke(); };
   const onStop  = () => { drawing.current = false; canvasRef.current?.getContext('2d')?.closePath(); };
 
   const tbtn = (bg: string): React.CSSProperties => ({ background: bg, color: '#fff', border: 'none', padding: '8px 16px', borderRadius: 4, fontSize: 11, cursor: 'pointer', marginRight: 4, fontFamily: 'Arial, sans-serif' });
@@ -699,9 +733,9 @@ function SignatureModal({ label, existing, onClose, t }: SigModalProps) {
         <button onClick={() => onClose()} style={tbtn('#888')}>{t.sigCancel}</button>
         <button onClick={() => onClose(canvasRef.current?.toDataURL('image/png'))} style={tbtn('#2a7a2a')}>{t.sigOk}</button>
       </div>
-      <div style={{ flex: 1, padding: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f0f0f0' }}>
+      <div style={{ flex: 1, minHeight: 0, padding: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f0f0f0', overflow: 'hidden' }}>
         <canvas ref={canvasRef} width={400} height={200}
-          style={{ background: 'white', border: '2px solid #aaa', borderRadius: 4, touchAction: 'none', cursor: 'crosshair', maxWidth: '100%', maxHeight: '100%' }}
+          style={{ background: 'white', border: '2px solid #aaa', borderRadius: 4, touchAction: 'none', cursor: 'crosshair', maxWidth: '100%', maxHeight: '100%', boxSizing: 'border-box' }}
           onMouseDown={onStart} onMouseMove={onMove} onMouseUp={onStop} onMouseLeave={onStop}
           onTouchStart={onStart} onTouchMove={onMove} onTouchEnd={onStop} />
       </div>
@@ -724,7 +758,8 @@ function SigPreview({ dataUrl, onClick, tapLabel }: { dataUrl?: string; onClick:
     const w = (parent ? parent.clientWidth : canvas.offsetWidth) || 300;
     const h = (parent ? parent.clientHeight : canvas.offsetHeight) || 75;
     canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
-    canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
+    // Keine festen px-Größen setzen: CSS (100% / border-box) bestimmt die Größe,
+    // sonst wächst der Container durch den Rahmen bei jedem Resize weiter.
     const ctx = canvas.getContext('2d')!;
     ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.scale(dpr, dpr);
     if (dataUrl) {
@@ -746,10 +781,10 @@ function SigPreview({ dataUrl, onClick, tapLabel }: { dataUrl?: string; onClick:
   }, [redraw]);
 
   return (
-    <div style={{ position: 'relative', width: '100%', aspectRatio: '4/1' }}>
+    <div style={{ position: 'relative', width: '100%', aspectRatio: '4/1', overflow: 'hidden', boxSizing: 'border-box' }}>
       <canvas ref={canvasRef} width={400} height={100} onClick={onClick}
         className="sig-canvas"
-        style={{ border: '2px dashed #999', background: 'white', cursor: 'pointer', width: '100%', height: '100%', borderRadius: 3, display: 'block', touchAction: 'none' }} />
+        style={{ border: '2px dashed #999', background: 'white', cursor: 'pointer', width: '100%', height: '100%', boxSizing: 'border-box', borderRadius: 3, display: 'block', touchAction: 'none' }} />
       {dataUrl
         ? <img src={dataUrl} alt="Unterschrift" className="sig-print-img"
             style={{ display: 'none', width: '100%', height: '100%', objectFit: 'contain', border: '1px solid #000' }} />
@@ -899,7 +934,7 @@ const printStyles = `
 // Logo
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const LOGO_B64 = '';
+const LOGO_SRC = '/gerlieva-logo.png';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Haupt-Komponente
@@ -910,11 +945,45 @@ export default function WartungsprotokollPage() {
   const t = translations[lang] as T;
 
   const [form, setForm]         = useState<FormData>(initialForm);
+
+  // ── Ungespeicherte Änderungen erkennen ──────────────────────────────────────
+  // Stand nach Laden / Speichern merken; Abweichung = ungespeichert
+  const formRef        = useRef(form);
+  formRef.current      = form;
+  const savedJsonRef   = useRef<string | null>(null);
+  const markCleanRef   = useRef(true);   // Startzustand gilt als gespeichert
+  const leavingRef     = useRef(false);
+  useEffect(() => {
+    if (markCleanRef.current) { savedJsonRef.current = JSON.stringify(form); markCleanRef.current = false; }
+  }, [form]);
+  const markSaved = () => { savedJsonRef.current = JSON.stringify(formRef.current); };
+  const isDirty   = () => savedJsonRef.current !== null && JSON.stringify(formRef.current) !== savedJsonRef.current;
+  // Browser schließen / neu laden
+  useEffect(() => {
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (leavingRef.current || !isDirty()) return;
+      e.preventDefault(); e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, []);
+  // Home / Storage-Link: bei ungespeicherten Änderungen eigenes Fenster statt sofort wegspringen
+  const [leaveTarget, setLeaveTarget] = useState<string | null>(null);
+  const leaveNow = (href: string) => { leavingRef.current = true; window.location.href = href; };
+  const confirmLeave = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (!isDirty()) { leavingRef.current = true; return; }
+    e.preventDefault();
+    setLeaveTarget(e.currentTarget.getAttribute('href') || '/');
+  };
+  const saveAndLeave = async () => {
+    const target = leaveTarget;
+    setLeaveTarget(null);
+    await handleUploadToStorage();           // bei Fehler / fehlenden Pflichtfeldern bleibt man im Protokoll
+    if (target && !isDirty()) leaveNow(target);
+  };
   const [sigModal, setSigModal] = useState<{ id: 'sig-gerlieva' | 'sig-kunde'; label: string } | null>(null);
   const [toast, setToast]       = useState<{ msg: string; type: 'success' | 'error' | ''; visible: boolean }>({ msg: '', type: '', visible: false });
   const [uploading, setUploading] = useState(false);
-  const fileInputRef  = useRef<HTMLInputElement>(null);
-  const toolbarRef    = useRef<HTMLDivElement>(null);
 
   // Importierte Daten aus localStorage laden (z.B. von Dokumenten-Seite)
   useEffect(() => {
@@ -929,6 +998,8 @@ export default function WartungsprotokollPage() {
       }
     }
   }, []);
+  const fileInputRef  = useRef<HTMLInputElement>(null);
+  const toolbarRef    = useRef<HTMLDivElement>(null);
 
   // Dynamisches marginTop: passt sich an wenn Toolbar durch Wrap höher wird
   useEffect(() => {
@@ -1003,23 +1074,15 @@ export default function WartungsprotokollPage() {
     setForm(f => { const mat = [...f.material]; mat[i] = { ...mat[i], [key]: val }; return { ...f, material: mat }; });
 
   // ── File name ──────────────────────────────────────────────────────────────
-  const getFileNameFn = (ext: string) => {
-    const maschineNr = (form.maschineNr || '').trim().replace(/[^a-zA-Z0-9_\-]/g, '_');
-    const datum = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-    
-    let name = 'Wartungsprotokoll_GSK';
-    if (maschineNr) name += `_${maschineNr}`;
-    name += `_${datum}`;
-    
-    return name + '.' + ext;
-  };
+  const getFileNameFn = (ext: string) => buildFileName(ext, form.kunde, form.maschineNr);
 
   // ── JSON I/O ───────────────────────────────────────────────────────────────
-  const collectFormData = () => ({ ...form, ts: new Date().toISOString(), dokumentTyp: "gskwartung" });
+  const collectFormData = () => ({ ...form, ts: new Date().toISOString(), dokumentTyp: DOKUMENT_TYP });
 
   const applyFormData = (data: FormData) => {
     if (!data || data.version !== 1) { showToast(t.toastInvalid, 'error'); return; }
-    setForm(data);
+    markCleanRef.current = true;
+    setForm({ ...initialForm(), ...data });
     showToast(t.toastLoaded, 'success');
   };
 
@@ -1031,32 +1094,31 @@ export default function WartungsprotokollPage() {
       const a    = document.createElement('a'); a.href = url; a.download = getFileNameFn('json');
       document.body.appendChild(a); a.click(); document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(url), 2000);
+      markSaved();
       showToast(t.toastSaved, 'success');
     } catch (err: unknown) { showToast(t.toastError + (err as Error).message, 'error'); }
   };
 
-  const handleShare = async () => {
-    const jsonStr = JSON.stringify(collectFormData(), null, 2);
-    const fileName = getFileNameFn('json').replace(/\.json$/, '.txt');
-    const blob = new Blob([jsonStr], { type: 'text/plain' });
-    const file = new File([blob], fileName, { type: 'text/plain' });
-    try {
-      if (typeof navigator.share === 'function' && typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] })) {
-        await navigator.share({ title: t.labelWartungShare, files: [file] });
-        return;
-      }
-    } catch (e) {
-      if ((e as Error).name === 'AbortError') return;
-    }
-    // Fallback: Download als .json
-    const url = URL.createObjectURL(new Blob([jsonStr], { type: 'application/json' }));
-    const a = document.createElement('a'); a.href = url; a.download = getFileNameFn('json');
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 2000);
-    showToast(t.toastDownloaded, 'success');
+  const handlePdf = () => {
+    alert(t.pdfAlert);
+    const restoreList: Array<() => void> = [];
+    document.querySelectorAll<HTMLInputElement>(
+      'input[type="text"], input[type="number"], input[type="time"], input[type="date"], input[type="month"]'
+    ).forEach(el => {
+      const old = el.getAttribute('value');
+      el.setAttribute('value', el.value);
+      restoreList.push(() => { if (old === null) el.removeAttribute('value'); else el.setAttribute('value', old); });
+    });
+    window.print();
+    setTimeout(() => restoreList.forEach(fn => fn()), 1000);
   };
 
+  // ── Supabase: In Storage speichern (überschreibt vorhandene Datei nach Rückfrage) ──
   const handleUploadToStorage = async () => {
+    if (!safeNamePart(form.kunde) || !safeNamePart(form.maschineNr)) {
+      showToast('Bitte Kunde und Maschine Nr. ausfüllen – daraus wird der Dateiname gebildet.', 'error');
+      return;
+    }
     setUploading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -1073,10 +1135,10 @@ export default function WartungsprotokollPage() {
       // Prüfen ob Datei bereits existiert
       const { data: files } = await supabase.storage
         .from(DOCUMENTS_BUCKET)
-        .list(user.id);
-      
+        .list(user.id, { limit: 1000, search: fileName });
+
       const exists = files?.some(f => f.name === fileName);
-      
+
       if (exists) {
         const confirmed = window.confirm(
           `Die Datei "${fileName}" existiert bereits.\n\nMöchten Sie sie überschreiben?`
@@ -1092,7 +1154,7 @@ export default function WartungsprotokollPage() {
 
       const { error: uploadError } = await supabase.storage
         .from(DOCUMENTS_BUCKET)
-        .upload(filePath, blob, { upsert: true });
+        .upload(filePath, blob, { upsert: true, cacheControl: '0', contentType: 'application/json' });
 
       if (uploadError) throw uploadError;
 
@@ -1109,11 +1171,12 @@ export default function WartungsprotokollPage() {
           .from(DOCUMENTS_TABLE)
           .update({
             file_name: fileName,
+            uploaded_at: new Date().toISOString(),
             file_type: 'application/json',
             file_size: blob.size
           })
           .eq('file_path', filePath);
-        
+
         if (updateError) throw updateError;
       } else {
         // INSERT
@@ -1126,30 +1189,17 @@ export default function WartungsprotokollPage() {
             file_size: blob.size,
             user_id: user.id
           });
-        
+
         if (insertError) throw insertError;
       }
 
+      markSaved();
       showToast('✅ In Storage gespeichert!', 'success');
     } catch (err: unknown) {
       showToast('Fehler beim Speichern: ' + (err as Error).message, 'error');
     } finally {
       setUploading(false);
     }
-  };
-
-  const handlePdf = () => {
-    alert(t.pdfAlert);
-    const restoreList: Array<() => void> = [];
-    document.querySelectorAll<HTMLInputElement>(
-      'input[type="text"], input[type="number"], input[type="time"], input[type="date"], input[type="month"]'
-    ).forEach(el => {
-      const old = el.getAttribute('value');
-      el.setAttribute('value', el.value);
-      restoreList.push(() => { if (old === null) el.removeAttribute('value'); else el.setAttribute('value', old); });
-    });
-    window.print();
-    setTimeout(() => restoreList.forEach(fn => fn()), 1000);
   };
 
   const handleLoad = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1287,12 +1337,13 @@ export default function WartungsprotokollPage() {
       <div id="toolbar" className="no-print" style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999, background: '#1a2744', padding: '6px 10px', paddingLeft: 'max(10px, env(safe-area-inset-left))', paddingRight: 'max(10px, env(safe-area-inset-right))', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', boxSizing: 'border-box' }}>
         <button onClick={() => fileInputRef.current?.click()} style={tbtn('#8e24aa')}>{t.loadJson}</button>
         <button onClick={handlePdf}   style={tbtn('#e8460a')}>{t.savePdf}</button>
-        <button onClick={handleUploadToStorage} disabled={uploading} style={tbtn('#1a7a3a')}>{uploading ? '⏳ Lädt...' : t.shareJson}</button>
+        <button onClick={handleUploadToStorage} disabled={uploading} style={{ ...tbtn('#1a7a3a'), opacity: uploading ? 0.6 : 1 }}>{uploading ? '⏳ Lädt...' : t.shareJson}</button>
         <button onClick={handleSave}  style={tbtn('#1a5fa8')}>{t.saveJson}</button>
         <span className="toolbar-title" style={{ color: '#a8b8d8', fontSize: 9, flexShrink: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{t.toolbarTitle}</span>
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
           <LangSwitcher current={lang} onChange={setLang} />
-          <a href="/" style={{ ...tbtn('#1a5fa8'), textDecoration: 'none' }}>{t.home}</a>
+          <a href="/dokumente" onClick={confirmLeave} style={{ ...tbtn('#1a5fa8'), textDecoration: 'none' }}>{t.storageLink}</a>
+          <a href="/" onClick={confirmLeave} style={{ ...tbtn('#1a5fa8'), textDecoration: 'none' }}>{t.home}</a>
         </div>
         <input ref={fileInputRef} type="file" accept=".json,.txt" style={{ display: 'none' }} onChange={handleLoad} />
       </div>
@@ -1318,6 +1369,7 @@ export default function WartungsprotokollPage() {
             <tbody>
               <tr>
                 <td rowSpan={3} style={{ border: '1px solid #000', verticalAlign: 'middle', textAlign: 'center', padding: 0, overflow: 'hidden' }}>
+                  <img src={LOGO_SRC} alt="Logo" style={{ height: 36, display: 'block', margin: '0 auto' }} />
                 </td>
                 <td colSpan={6} style={{ border: '1px solid #000', padding: 1 }}></td>
                 <th colSpan={2} style={{ border: '1px solid #000', textAlign: 'right', fontWeight: 'bold', fontSize: 11 }}>{t.labelWartung}</th>
@@ -1634,6 +1686,26 @@ export default function WartungsprotokollPage() {
       </div>
 
       {/* ── Modals & Notifications ── */}
+      {/* ── Verlassen mit ungespeicherten Änderungen ── */}
+      {leaveTarget && (
+        <div className="no-print" onClick={() => setLeaveTarget(null)}
+          style={{ position: 'fixed', inset: 0, zIndex: 100000, background: 'rgba(0,0,0,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div role="dialog" aria-modal="true" onClick={e => e.stopPropagation()}
+            style={{ background: '#fff', color: '#000', borderRadius: 8, padding: '18px 18px 14px', width: 'min(420px, 100%)', boxShadow: '0 8px 30px rgba(0,0,0,.35)', fontFamily: 'Arial, sans-serif' }}>
+            <div style={{ fontSize: 15, fontWeight: 'bold', marginBottom: 6 }}>⚠️ {t.leaveTitle}</div>
+            <div style={{ fontSize: 13, color: '#444', marginBottom: 16 }}>{t.leaveText}</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <button onClick={saveAndLeave} disabled={uploading}
+                style={{ border: 'none', borderRadius: 4, padding: '11px 14px', minHeight: 44, fontSize: 13, fontWeight: 'bold', color: '#fff', cursor: 'pointer', background: '#1a7a3a', fontFamily: 'Arial, sans-serif' }}>{t.leaveSave}</button>
+              <button onClick={() => leaveNow(leaveTarget)}
+                style={{ border: 'none', borderRadius: 4, padding: '11px 14px', minHeight: 44, fontSize: 13, fontWeight: 'bold', color: '#fff', cursor: 'pointer', background: '#c53a08', fontFamily: 'Arial, sans-serif' }}>{t.leaveDiscard}</button>
+              <button onClick={() => setLeaveTarget(null)}
+                style={{ border: '1px solid #bbb', borderRadius: 4, padding: '11px 14px', minHeight: 44, fontSize: 13, fontWeight: 'bold', color: '#333', cursor: 'pointer', background: '#f2f2f2', fontFamily: 'Arial, sans-serif' }}>{t.leaveCancel}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {sigModal && (
         <SignatureModal label={sigModal.label} existing={form.signatures[sigModal.id]}
           onClose={dataUrl => handleSigClose(sigModal.id, dataUrl)} t={t} />

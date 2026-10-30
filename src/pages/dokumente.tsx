@@ -29,6 +29,21 @@ interface Document {
   profiles?: any;
 }
 
+// Filter nach Protokolltyp – Zuordnung über den Anfang des Dateinamens
+const DOC_TYPES: { key: string; label: string; prefix?: string }[] = [
+  { key: "alle",          label: "Alle" },
+  { key: "gs",            label: "Wartungsprotokoll GS",                prefix: "Wartungsprotokoll_GS_" },
+  { key: "gsk",           label: "Wartungsprotokoll GSK",               prefix: "Wartungsprotokoll_GSK_" },
+  { key: "dos462",        label: "Dosieranlagen 462",                   prefix: "Wartungsprotokoll_Dosieranlagen_462_" },
+  { key: "dos464",        label: "Dosieranlagen 464",                   prefix: "Wartungsprotokoll_Dosieranlagen_464_" },
+  { key: "spruehkopf",    label: "Sprühkopf",                           prefix: "Wartungsprotokoll_Spruehkopf_" },
+  { key: "spuel",         label: "Spül- u. Teststand",                  prefix: "Wartungsprotokoll_Spuel-u-Teststand_" },
+  { key: "service",       label: "Servicebericht",                      prefix: "Servicebericht_" },
+  { key: "sonstige",      label: "Sonstige" },
+];
+const docTypeKey = (fileName: string): string =>
+  DOC_TYPES.find(t => t.prefix && fileName.startsWith(t.prefix))?.key ?? "sonstige";
+
 interface Techniker {
   id: string;
   full_name: string;
@@ -39,6 +54,7 @@ export default function DokumentePage() {
   const router = useRouter();
   const { toast } = useToast();
   const [documents, setDocuments] = useState<Document[]>([]);
+  const [typeFilter, setTypeFilter] = useState<string>("alle");
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -289,6 +305,22 @@ export default function DokumentePage() {
     );
   };
 
+  // Datei immer frisch laden – .download() kann nach dem Überschreiben bis zu 1 h
+  // eine zwischengespeicherte (alte) Version liefern. Die signierte URL ist bei jedem Aufruf neu.
+  const fetchFreshFile = async (filePath: string): Promise<Blob> => {
+    const { data: signed, error: signError } = await supabase.storage
+      .from("documents")
+      .createSignedUrl(filePath, 60);
+    if (!signError && signed?.signedUrl) {
+      const res = await fetch(signed.signedUrl, { cache: "no-store" });
+      if (res.ok) return await res.blob();
+    }
+    // Fallback: normaler Download
+    const { data, error } = await supabase.storage.from("documents").download(filePath);
+    if (error) throw error;
+    return data;
+  };
+
   const handleOpenDocument = async (doc: Document) => {
     if (doc.file_type !== "application/json") {
       toast({
@@ -300,11 +332,7 @@ export default function DokumentePage() {
     }
 
     try {
-      const { data, error } = await supabase.storage
-        .from("documents")
-        .download(doc.file_path);
-
-      if (error) throw error;
+      const data = await fetchFreshFile(doc.file_path);
 
       const text = await data.text();
       const jsonData = JSON.parse(text);
@@ -336,6 +364,10 @@ export default function DokumentePage() {
         "gswartung": "/Wartungsprotokoll_GS",
         "gs": "/Wartungsprotokoll_GS",
         "wartung_gs": "/Wartungsprotokoll_GS",
+        
+        // Spül- u. Teststand
+        "spuelteststand": "/Wartungsprotokoll_Spuel-u-Teststand",
+        "wartung_spuelteststand": "/Wartungsprotokoll_Spuel-u-Teststand",
         
         // GSK Wartung
         "gskwartung": "/Wartungsprotokoll_GSK",
@@ -403,11 +435,7 @@ export default function DokumentePage() {
 
   const handleDownload = async (doc: Document) => {
     try {
-      const { data, error } = await supabase.storage
-        .from("documents")
-        .download(doc.file_path);
-
-      if (error) throw error;
+      const data = await fetchFreshFile(doc.file_path);
 
       const url = URL.createObjectURL(data);
       const a = document.createElement("a");
@@ -466,6 +494,10 @@ export default function DokumentePage() {
     return (bytes / (1024 * 1024)).toFixed(1) + " MB";
   };
 
+  const filteredDocuments = typeFilter === "alle"
+    ? documents
+    : documents.filter(d => docTypeKey(d.file_name) === typeFilter);
+
   const isOwnDocument = (doc: Document) => {
     return doc.user_id === currentUserId;
   };
@@ -473,7 +505,7 @@ export default function DokumentePage() {
   return (
     <AuthGuard>
       <SEO
-        title="Dokumente | Wartungsprotokoll"
+        title="Storage/Dokumente | Wartungsprotokoll"
         description="Dokumentenverwaltung für Wartungsprotokolle"
       />
       <div className="min-h-screen bg-background">
@@ -481,7 +513,7 @@ export default function DokumentePage() {
           <div className="max-w-4xl mx-auto space-y-6">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-3xl font-bold">Dokumente</h1>
+                <h1 className="text-3xl font-bold">Storage/Dokumente</h1>
                 <p className="text-muted-foreground">
                   {isAdmin ? "Alle Dokumente verwalten und freigeben" : "Laden Sie PDFs und Dokumente hoch"}
                 </p>
@@ -557,24 +589,40 @@ export default function DokumentePage() {
                   {isAdmin ? "Alle Dokumente" : "Dokumente"}
                 </CardTitle>
                 <CardDescription>
-                  {documents.length} {documents.length === 1 ? "Dokument" : "Dokumente"}
+                  {filteredDocuments.length === documents.length
+                    ? `${documents.length} ${documents.length === 1 ? "Dokument" : "Dokumente"}`
+                    : `${filteredDocuments.length} von ${documents.length} Dokumenten`}
                 </CardDescription>
+                <div className="flex items-center gap-2 pt-2">
+                  <Label htmlFor="typeFilter" className="shrink-0">Protokolltyp:</Label>
+                  <select
+                    id="typeFilter"
+                    value={typeFilter}
+                    onChange={(e) => setTypeFilter(e.target.value)}
+                    className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                  >
+                    {DOC_TYPES.map(t => {
+                      const n = t.key === "alle" ? documents.length : documents.filter(d => docTypeKey(d.file_name) === t.key).length;
+                      return <option key={t.key} value={t.key}>{t.label} ({n})</option>;
+                    })}
+                  </select>
+                </div>
               </CardHeader>
               <CardContent>
                 {loading ? (
                   <div className="text-center py-8">
                     <Loader2 className="h-8 w-8 animate-spin mx-auto text-muted-foreground" />
                   </div>
-                ) : documents.length === 0 ? (
+                ) : filteredDocuments.length === 0 ? (
                   <Alert>
                     <FileText className="h-4 w-4" />
                     <AlertDescription>
-                      Noch keine Dokumente vorhanden.
+                      {documents.length === 0 ? "Noch keine Dokumente vorhanden." : "Keine Dokumente dieses Typs vorhanden."}
                     </AlertDescription>
                   </Alert>
                 ) : (
                   <div className="space-y-3">
-                    {documents.map((doc) => (
+                    {filteredDocuments.map((doc) => (
                       <div
                         key={doc.id}
                         className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/50 transition-colors"

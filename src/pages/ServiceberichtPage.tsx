@@ -63,6 +63,12 @@ const translations = {
     saveJson:             '💾 JSON speichern',
     toolbarTitle:         'Servicebericht · GERLIEVA Sprühtechnik GmbH',
     home:                 '🏠 Home',
+    storageLink:          '🗄 Storage/Dokumente',
+    leaveTitle:           'Ungespeicherte Änderungen',
+    leaveText:            'Das Protokoll wurde seit dem letzten Speichern geändert.',
+    leaveSave:            '💾 In Storage speichern & weiter',
+    leaveDiscard:         'Ohne Speichern weiter',
+    leaveCancel:          'Abbrechen (im Protokoll bleiben)',
     pdfAlert:             'Im Druckdialog:\n1. Drucker → "Als PDF speichern"\n2. Weitere Einstellungen → "Hintergrundgrafiken" ✓ aktivieren\n3. Weitere Einstellungen → "Kopf- und Fußzeilen" ✗ deaktivieren\n→ Dann sind alle Farben im PDF und kein URL/Profilpfad sichtbar.',
     toastSaved:           '✅ JSON gespeichert!',
     toastDownloaded:      '✅ JSON heruntergeladen!',
@@ -146,6 +152,12 @@ const translations = {
     saveJson:             '💾 Save JSON',
     toolbarTitle:         'Service Report · GERLIEVA Sprühtechnik GmbH',
     home:                 '🏠 Home',
+    storageLink:          '🗄 Storage/Documents',
+    leaveTitle:           'Unsaved changes',
+    leaveText:            'The protocol has been changed since it was last saved.',
+    leaveSave:            '💾 Save to storage & continue',
+    leaveDiscard:         'Continue without saving',
+    leaveCancel:          'Cancel (stay in protocol)',
     pdfAlert:             'In the print dialog:\n1. Printer → "Save as PDF"\n2. More settings → enable "Background graphics" ✓\n→ This ensures all colours appear in the PDF.',
     toastSaved:           '✅ JSON saved!',
     toastDownloaded:      '✅ JSON downloaded!',
@@ -229,6 +241,12 @@ const translations = {
     saveJson:             '💾 Sauvegarder JSON',
     toolbarTitle:         'Rapport de service · GERLIEVA Sprühtechnik GmbH',
     home:                 '🏠 Accueil',
+    storageLink:          '🗄 Storage/Documents',
+    leaveTitle:           'Modifications non enregistrées',
+    leaveText:            'Le protocole a été modifié depuis le dernier enregistrement.',
+    leaveSave:            '💾 Enregistrer dans le stockage et continuer',
+    leaveDiscard:         'Continuer sans enregistrer',
+    leaveCancel:          'Annuler (rester dans le protocole)',
     pdfAlert:             "Dans la boîte de dialogue d'impression :\n1. Imprimante → \"Enregistrer en PDF\"\n2. Paramètres → activer \"Graphiques d'arrière-plan\" ✓\n→ Toutes les couleurs apparaîtront dans le PDF.",
     toastSaved:           '✅ JSON enregistré !',
     toastDownloaded:      '✅ JSON téléchargé !',
@@ -540,8 +558,12 @@ function SignatureModal({ label, existing, onClose, t }: SigModalProps) {
     const resize = () => {
       const container = canvas.parentElement!;
       const dpr = window.devicePixelRatio || 1;
-      const w = Math.max(container.clientWidth - 16, 100);
-      const h = Math.max(container.clientHeight - 16, 80);
+      const maxW = Math.max(container.clientWidth - 16, 100);
+      const maxH = Math.max(container.clientHeight - 16, 80);
+      // Gleiches Seitenverhältnis wie das Unterschriftsfeld (3:1) – sonst wird die
+      // Unterschrift beim Einpassen gestaucht und erscheint nur noch als dünne Punkte.
+      const w = Math.min(maxW, maxH * 3);
+      const h = w / 3;
       const tmp = document.createElement('canvas');
       tmp.width = canvas.width; tmp.height = canvas.height;
       tmp.getContext('2d')!.drawImage(canvas, 0, 0);
@@ -578,7 +600,7 @@ function SignatureModal({ label, existing, onClose, t }: SigModalProps) {
     return { x: (src.clientX - r.left) * scaleX, y: (src.clientY - r.top) * scaleY };
   };
   const onStart = (e: React.MouseEvent | React.TouchEvent) => { e.preventDefault(); drawing.current = true; const c = canvasRef.current!; const ctx = c.getContext('2d')!; const p = getPos(e, c); ctx.beginPath(); ctx.moveTo(p.x, p.y); };
-  const onMove  = (e: React.MouseEvent | React.TouchEvent) => { e.preventDefault(); if (!drawing.current) return; const c = canvasRef.current!; const ctx = c.getContext('2d')!; const p = getPos(e, c); ctx.lineTo(p.x, p.y); ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.stroke(); };
+  const onMove  = (e: React.MouseEvent | React.TouchEvent) => { e.preventDefault(); if (!drawing.current) return; const c = canvasRef.current!; const ctx = c.getContext('2d')!; const p = getPos(e, c); ctx.lineTo(p.x, p.y); ctx.strokeStyle = '#000'; ctx.lineWidth = Math.max(2, c.width / (window.devicePixelRatio || 1) / 150); ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.stroke(); };
   const onStop  = () => { drawing.current = false; canvasRef.current?.getContext('2d')?.closePath(); };
 
   const tbtn = (bg: string): React.CSSProperties => ({
@@ -595,9 +617,9 @@ function SignatureModal({ label, existing, onClose, t }: SigModalProps) {
         <button onClick={() => onClose()} style={tbtn('#888')}>{t.sigCancel}</button>
         <button onClick={() => onClose(canvasRef.current?.toDataURL('image/png'))} style={tbtn('#2a7a2a')}>{t.sigOk}</button>
       </div>
-      <div style={{ flex: 1, padding: 8, display: 'flex', alignItems: 'stretch', justifyContent: 'center', background: '#f0f0f0', overflow: 'hidden' }}>
+      <div style={{ flex: 1, minHeight: 0, padding: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f0f0f0', overflow: 'hidden' }}>
         <canvas ref={canvasRef} width={400} height={200}
-          style={{ background: 'white', border: '2px solid #aaa', borderRadius: 4, touchAction: 'none', cursor: 'crosshair', width: '100%', height: '100%', display: 'block' }}
+          style={{ background: 'white', border: '2px solid #aaa', borderRadius: 4, touchAction: 'none', cursor: 'crosshair', display: 'block', boxSizing: 'border-box' }}
           onMouseDown={onStart} onMouseMove={onMove} onMouseUp={onStop} onMouseLeave={onStop}
           onTouchStart={onStart} onTouchMove={onMove} onTouchEnd={onStop} />
       </div>
@@ -619,7 +641,8 @@ function SigPreview({ dataUrl, onClick, tapLabel }: { dataUrl?: string; onClick:
     const w = (parent ? parent.clientWidth : canvas.offsetWidth) || 300;
     const h = (parent ? parent.clientHeight : canvas.offsetHeight) || 80;
     canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
-    canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
+    // Keine festen px-Größen setzen: CSS (100% / border-box) bestimmt die Größe,
+    // sonst wächst der Container durch den Rahmen bei jedem Resize weiter.
     const ctx = canvas.getContext('2d')!;
     ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.scale(dpr, dpr);
     if (dataUrl) {
@@ -641,10 +664,10 @@ function SigPreview({ dataUrl, onClick, tapLabel }: { dataUrl?: string; onClick:
   }, [redraw]);
 
   return (
-    <div style={{ position: 'relative', width: '100%', aspectRatio: '3/1' }}>
+    <div style={{ position: 'relative', width: '100%', aspectRatio: '3/1', overflow: 'hidden', boxSizing: 'border-box' }}>
       <canvas ref={canvasRef} width={400} height={133} onClick={onClick}
         className="sig-canvas"
-        style={{ border: '2px dashed #999', background: 'white', cursor: 'pointer', width: '100%', height: '100%', borderRadius: 3, display: 'block', touchAction: 'none', WebkitTapHighlightColor: 'transparent' }} />
+        style={{ border: '2px dashed #999', background: 'white', cursor: 'pointer', width: '100%', height: '100%', boxSizing: 'border-box', borderRadius: 3, display: 'block', touchAction: 'none', WebkitTapHighlightColor: 'transparent' }} />
       {dataUrl
         ? <img src={dataUrl} alt="Unterschrift" className="sig-print-img"
             style={{ display: 'none', width: '100%', height: '100%', objectFit: 'contain', border: '1px solid #000' }} />
@@ -659,11 +682,63 @@ function SigPreview({ dataUrl, onClick, tapLabel }: { dataUrl?: string; onClick:
 // Main Component
 // ═══════════════════════════════════════════════════════════════════════════════
 
+// Teil des Dateinamens: Umlaute umschreiben, Sonderzeichen → "_"
+function safeNamePart(v: string): string {
+  return (v || '').trim()
+    .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue')
+    .replace(/Ä/g, 'Ae').replace(/Ö/g, 'Oe').replace(/Ü/g, 'Ue').replace(/ß/g, 'ss')
+    .replace(/[^a-zA-Z0-9_\-]+/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+}
+
+// Dateiname = Protokolltyp + Kunde + Nummer (ohne Datum) → dasselbe Protokoll
+// landet immer in derselben Datei und wird beim Speichern überschrieben.
+function buildFileName(ext: string, kunde: string, nummer: string): string {
+  const parts = ['Servicebericht', safeNamePart(kunde), safeNamePart(nummer)].filter(Boolean);
+  if (parts.length === 1) parts.push(new Date().toISOString().slice(0, 10).replace(/-/g, '')); // nur Fallback für lokalen Download ohne Angaben
+  return parts.join('_') + '.' + ext;
+}
+
 export default function ServiceberichtPage() {
   const [lang, setLang] = useState<Lang>('de');
   const t = translations[lang] as T;
 
   const [form, setForm]         = useState<FormData>(initialForm);
+
+  // ── Ungespeicherte Änderungen erkennen ──────────────────────────────────────
+  // Stand nach Laden / Speichern merken; Abweichung = ungespeichert
+  const formRef        = useRef(form);
+  formRef.current      = form;
+  const savedJsonRef   = useRef<string | null>(null);
+  const markCleanRef   = useRef(true);   // Startzustand gilt als gespeichert
+  const leavingRef     = useRef(false);
+  useEffect(() => {
+    if (markCleanRef.current) { savedJsonRef.current = JSON.stringify(form); markCleanRef.current = false; }
+  }, [form]);
+  const markSaved = () => { savedJsonRef.current = JSON.stringify(formRef.current); };
+  const isDirty   = () => savedJsonRef.current !== null && JSON.stringify(formRef.current) !== savedJsonRef.current;
+  // Browser schließen / neu laden
+  useEffect(() => {
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (leavingRef.current || !isDirty()) return;
+      e.preventDefault(); e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, []);
+  // Home / Storage-Link: bei ungespeicherten Änderungen eigenes Fenster statt sofort wegspringen
+  const [leaveTarget, setLeaveTarget] = useState<string | null>(null);
+  const leaveNow = (href: string) => { leavingRef.current = true; window.location.href = href; };
+  const confirmLeave = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (!isDirty()) { leavingRef.current = true; return; }
+    e.preventDefault();
+    setLeaveTarget(e.currentTarget.getAttribute('href') || '/');
+  };
+  const saveAndLeave = async () => {
+    const target = leaveTarget;
+    setLeaveTarget(null);
+    await handleUploadToStorage();           // bei Fehler / fehlenden Pflichtfeldern bleibt man im Protokoll
+    if (target && !isDirty()) leaveNow(target);
+  };
   const [sigModal, setSigModal] = useState<{ id: 'sig-gerlieva' | 'sig-kunde'; label: string } | null>(null);
   const [uploading, setUploading] = useState(false);
   const [toolbarH, setToolbarH] = useState(52);
@@ -796,18 +871,7 @@ export default function ServiceberichtPage() {
   const gesamtRZ        = formatMin(reiseBreakdown.total);
 
   // ── File name ──────────────────────────────────────────────────────────────
-  const getFileName = (ext: string) => {
-    const kunde = (form.kundeName || '').trim().replace(/[^a-zA-Z0-9_\-]/g, '_');
-    const maschineNr = (form.maschinen.find(m => m.maschinenNr)?.maschinenNr || '').trim().replace(/[^a-zA-Z0-9_\-]/g, '_');
-    const datum = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-    
-    let name = 'Servicebericht';
-    if (kunde) name += `_${kunde}`;
-    if (maschineNr) name += `_${maschineNr}`;
-    name += `_${datum}`;
-    
-    return name + '.' + ext;
-  };
+  const getFileName = (ext: string) => buildFileName(ext, form.kundeName, (form.maschinen.find(m => m.maschinenNr)?.maschinenNr || ''));
 
   // ── JSON I/O ───────────────────────────────────────────────────────────────
   const collectFormData = () => ({ ...form, dokumentTyp: DOKUMENT_TYP, ts: new Date().toISOString() });
@@ -825,6 +889,7 @@ export default function ServiceberichtPage() {
       dokumentTyp: DOKUMENT_TYP,
       version: 2,
     };
+    markCleanRef.current = true;
     setForm(migrated);
     showToast(t.toastLoaded, 'success');
   };
@@ -851,6 +916,7 @@ export default function ServiceberichtPage() {
       const a = document.createElement('a'); a.href = url; a.download = getFileName('json');
       document.body.appendChild(a); a.click(); document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(url), 2000);
+      markSaved();
       showToast(t.toastSaved, 'success');
     } catch (err: unknown) { showToast(t.toastError + (err as Error).message, 'error'); }
   };
@@ -863,6 +929,10 @@ export default function ServiceberichtPage() {
 
   const handleUploadToStorage = async () => {
     if (uploading) return;
+    if (!safeNamePart(form.kundeName) || !safeNamePart((form.maschinen.find(m => m.maschinenNr)?.maschinenNr || ''))) {
+      showToast('Bitte Kunde und Maschinen-Nr. ausfüllen – daraus wird der Dateiname gebildet.', 'error');
+      return;
+    }
     setUploading(true);
     try {
       const { data: userData, error: userError } = await supabase.auth.getUser();
@@ -878,7 +948,7 @@ export default function ServiceberichtPage() {
       // Prüfen ob Datei bereits existiert
       const { data: files } = await supabase.storage
         .from(DOCUMENTS_BUCKET)
-        .list(user.id);
+        .list(user.id, { limit: 1000, search: fileName });
       
       const exists = files?.some(f => f.name === fileName);
       
@@ -898,7 +968,7 @@ export default function ServiceberichtPage() {
       // Hochladen in Storage
       const { error: uploadError } = await supabase.storage
         .from(DOCUMENTS_BUCKET)
-        .upload(filePath, blob, { upsert: true });
+        .upload(filePath, blob, { upsert: true, cacheControl: '0', contentType: 'application/json' });
       if (uploadError) throw uploadError;
 
       // Prüfen ob DB-Eintrag existiert
@@ -914,6 +984,7 @@ export default function ServiceberichtPage() {
           .from(DOCUMENTS_TABLE)
           .update({
             file_name: fileName,
+            uploaded_at: new Date().toISOString(),
             file_type: 'application/json',
             file_size: blob.size,
             description: buildDescription()
@@ -937,6 +1008,7 @@ export default function ServiceberichtPage() {
         if (insertError) throw insertError;
       }
 
+      markSaved();
       showToast(t.toastUploaded, 'success');
     } catch (err: unknown) {
       showToast(t.toastUploadError + (err as Error).message, 'error');
@@ -983,7 +1055,8 @@ export default function ServiceberichtPage() {
         <span style={{ color: '#a8b8d8', fontSize: 9, display: 'none' }} className="toolbar-title">{t.toolbarTitle}</span>
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
           <LangSwitcher current={lang} onChange={setLang} />
-          <a href="/" style={{ ...s.tbtn, background: '#1a5fa8', textDecoration: 'none' }}>{t.home}</a>
+          <a href="/dokumente" onClick={confirmLeave} style={{ ...s.tbtn, background: '#1a5fa8', textDecoration: 'none' }}>{t.storageLink}</a>
+          <a href="/" onClick={confirmLeave} style={{ ...s.tbtn, background: '#1a5fa8', textDecoration: 'none' }}>{t.home}</a>
         </div>
         <input ref={fileInputRef} type="file" accept=".json,.txt" style={{ display: 'none' }} onChange={handleLoad} />
       </div>
@@ -1541,6 +1614,26 @@ export default function ServiceberichtPage() {
       </div>
 
       {/* ── Modals & notifications ── */}
+      {/* ── Verlassen mit ungespeicherten Änderungen ── */}
+      {leaveTarget && (
+        <div className="no-print" onClick={() => setLeaveTarget(null)}
+          style={{ position: 'fixed', inset: 0, zIndex: 100000, background: 'rgba(0,0,0,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div role="dialog" aria-modal="true" onClick={e => e.stopPropagation()}
+            style={{ background: '#fff', color: '#000', borderRadius: 8, padding: '18px 18px 14px', width: 'min(420px, 100%)', boxShadow: '0 8px 30px rgba(0,0,0,.35)', fontFamily: 'Arial, sans-serif' }}>
+            <div style={{ fontSize: 15, fontWeight: 'bold', marginBottom: 6 }}>⚠️ {t.leaveTitle}</div>
+            <div style={{ fontSize: 13, color: '#444', marginBottom: 16 }}>{t.leaveText}</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <button onClick={saveAndLeave} disabled={uploading}
+                style={{ border: 'none', borderRadius: 4, padding: '11px 14px', minHeight: 44, fontSize: 13, fontWeight: 'bold', color: '#fff', cursor: 'pointer', background: '#1a7a3a', fontFamily: 'Arial, sans-serif' }}>{t.leaveSave}</button>
+              <button onClick={() => leaveNow(leaveTarget)}
+                style={{ border: 'none', borderRadius: 4, padding: '11px 14px', minHeight: 44, fontSize: 13, fontWeight: 'bold', color: '#fff', cursor: 'pointer', background: '#c53a08', fontFamily: 'Arial, sans-serif' }}>{t.leaveDiscard}</button>
+              <button onClick={() => setLeaveTarget(null)}
+                style={{ border: '1px solid #bbb', borderRadius: 4, padding: '11px 14px', minHeight: 44, fontSize: 13, fontWeight: 'bold', color: '#333', cursor: 'pointer', background: '#f2f2f2', fontFamily: 'Arial, sans-serif' }}>{t.leaveCancel}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {sigModal && (
         <SignatureModal label={sigModal.label} existing={form.signatures[sigModal.id]}
           onClose={dataUrl => handleSigClose(sigModal.id, dataUrl)} t={t} />
