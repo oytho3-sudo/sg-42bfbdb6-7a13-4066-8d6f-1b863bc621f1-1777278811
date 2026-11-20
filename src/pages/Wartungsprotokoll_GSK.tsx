@@ -991,7 +991,13 @@ export default function WartungsprotokollPage() {
     if (importedData) {
       try {
         const data = JSON.parse(importedData);
-        applyFormData(data);
+        // Neues Format: { formData: {...}, documentId: "...", filePath: "...", isSharedDocument: true }
+        // Altes Format: direktes FormData-Objekt
+        if (data.formData) {
+          applyFormData(data.formData);
+        } else {
+          applyFormData(data);
+        }
         localStorage.removeItem('importedFormData');
       } catch (err) {
         console.error('Fehler beim Laden importierter Daten:', err);
