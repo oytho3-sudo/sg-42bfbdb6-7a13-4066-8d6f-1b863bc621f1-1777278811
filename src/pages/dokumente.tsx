@@ -3,6 +3,7 @@ import { useRouter } from "next/router";
 import { supabase } from "@/integrations/supabase/client";
 import { AuthGuard } from "@/components/AuthGuard";
 import { SEO } from "@/components/SEO";
+import ArchivButton from "@/components/ArchivButton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -709,6 +710,10 @@ export default function DokumentePage() {
                           >
                             <Download className="h-4 w-4" />
                           </Button>
+                          {doc.file_name.toLowerCase().endsWith(".json") && (
+                            <ArchivButton compact fileName={doc.file_name}
+                              loadContent={async () => (await fetchFreshFile(doc.file_path)).text()} />
+                          )}
                           {(isAdmin || isOwnDocument(doc)) && (
                             <Button
                               variant="destructive"

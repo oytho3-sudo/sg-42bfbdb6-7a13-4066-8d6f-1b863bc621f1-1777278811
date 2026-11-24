@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import ArchivButton from '@/components/ArchivButton';
 
 // Bucket und Tabellen-Namen
 const DOCUMENTS_BUCKET = 'documents';
@@ -80,11 +81,7 @@ const translations = {
     techPlaceholder:'________________',
     home:           '🏠 Home',
     storageLink:    '🗄 Storage/Dokumente',
-    leaveTitle:     'Ungespeicherte Änderungen',
-    leaveText:      'Das Protokoll wurde seit dem letzten Speichern geändert.',
-    leaveSave:      '💾 In Storage speichern & weiter',
-    leaveDiscard:   'Ohne Speichern weiter',
-    leaveCancel:    'Abbrechen (im Protokoll bleiben)',
+    leaveConfirm:   'Es gibt ungespeicherte Änderungen.\n\nSeite trotzdem verlassen?',
     labelWartungShare: 'Wartungsprotokoll GERLIEVA',
     sectionMaterial:'Material- und Teileliste',
     thPos:          'Pos.',
@@ -191,11 +188,7 @@ const translations = {
     techPlaceholder:'________________',
     home:           '🏠 Home',
     storageLink:    '🗄 Storage/Documents',
-    leaveTitle:     'Unsaved changes',
-    leaveText:      'The protocol has been changed since it was last saved.',
-    leaveSave:      '💾 Save to storage & continue',
-    leaveDiscard:   'Continue without saving',
-    leaveCancel:    'Cancel (stay in protocol)',
+    leaveConfirm:   'There are unsaved changes.\n\nLeave the page anyway?',
     labelWartungShare: 'Maintenance Log GERLIEVA',
     sectionMaterial:'Materials & Parts List',
     thPos:          'Pos.',
@@ -300,11 +293,7 @@ const translations = {
     techPlaceholder:'________________',
     home:           '🏠 Accueil',
     storageLink:    '🗄 Storage/Documents',
-    leaveTitle:     'Modifications non enregistrées',
-    leaveText:      'Le protocole a été modifié depuis le dernier enregistrement.',
-    leaveSave:      '💾 Enregistrer dans le stockage et continuer',
-    leaveDiscard:   'Continuer sans enregistrer',
-    leaveCancel:    'Annuler (rester dans le protocole)',
+    leaveConfirm:   'Des modifications ne sont pas enregistrées.\n\nQuitter la page quand même ?',
     labelWartungShare: 'Protocole de maintenance GERLIEVA',
     sectionMaterial:'Liste des matériaux et pièces',
     thPos:          'Pos.',
@@ -954,19 +943,10 @@ export default function WartungsprotokollPage() {
     window.addEventListener('beforeunload', onBeforeUnload);
     return () => window.removeEventListener('beforeunload', onBeforeUnload);
   }, []);
-  // Home / Storage-Link: bei ungespeicherten Änderungen eigenes Fenster statt sofort wegspringen
-  const [leaveTarget, setLeaveTarget] = useState<string | null>(null);
-  const leaveNow = (href: string) => { leavingRef.current = true; window.location.href = href; };
-  const confirmLeave = (e: React.MouseEvent<HTMLAnchorElement>) => {
-    if (!isDirty()) { leavingRef.current = true; return; }
-    e.preventDefault();
-    setLeaveTarget(e.currentTarget.getAttribute('href') || '/');
-  };
-  const saveAndLeave = async () => {
-    const target = leaveTarget;
-    setLeaveTarget(null);
-    await handleUploadToStorage();           // bei Fehler / fehlenden Pflichtfeldern bleibt man im Protokoll
-    if (target && !isDirty()) leaveNow(target);
+  // Home / Storage-Link
+  const confirmLeave = (e: React.MouseEvent) => {
+    if (isDirty() && !window.confirm(t.leaveConfirm)) { e.preventDefault(); return; }
+    leavingRef.current = true;
   };
   const [sigModal, setSigModal] = useState<{ id: 'sig-gerlieva' | 'sig-kunde'; label: string } | null>(null);
   const [toast, setToast]       = useState<{ msg: string; type: 'success' | 'error' | ''; visible: boolean }>({ msg: '', type: '', visible: false });
@@ -978,7 +958,13 @@ export default function WartungsprotokollPage() {
     if (importedData) {
       try {
         const data = JSON.parse(importedData);
-        applyFormData(data);
+        // Neues Format: { formData: {...}, documentId: "...", filePath: "...", isSharedDocument: true }
+        // Altes Format: direktes FormData-Objekt
+        if (data.formData) {
+          applyFormData(data.formData);
+        } else {
+          applyFormData(data);
+        }
         localStorage.removeItem('importedFormData');
       } catch (err) {
         console.error('Fehler beim Laden importierter Daten:', err);
@@ -1238,6 +1224,8 @@ export default function WartungsprotokollPage() {
         <button onClick={() => fileInputRef.current?.click()} style={tbtn('#8e24aa')}>{t.loadJson}</button>
         <button onClick={handlePdf}   style={tbtn('#e8460a')}>{t.savePdf}</button>
         <button onClick={handleUploadToStorage} disabled={uploading} style={{ ...tbtn('#1a7a3a'), opacity: uploading ? 0.6 : 1 }}>{uploading ? '⏳ Lädt...' : t.shareJson}</button>
+        <ArchivButton plain style={tbtn('#6a4c93')} fileName={getFileNameFn('json')} loadContent={async () => JSON.stringify(collectFormData(), null, 2)}
+          disabled={!safeNamePart(form.kunde) || !safeNamePart(form.maschineNr)} />
         <button onClick={handleSave}  style={tbtn('#1a5fa8')}>{t.saveJson}</button>
         <span className="toolbar-title" style={{ color: '#a8b8d8', fontSize: 9, flexShrink: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{t.toolbarTitle}</span>
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
@@ -1584,26 +1572,6 @@ export default function WartungsprotokollPage() {
       </div>
 
       {/* ── Modals & Notifications ── */}
-      {/* ── Verlassen mit ungespeicherten Änderungen ── */}
-      {leaveTarget && (
-        <div className="no-print" onClick={() => setLeaveTarget(null)}
-          style={{ position: 'fixed', inset: 0, zIndex: 100000, background: 'rgba(0,0,0,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-          <div role="dialog" aria-modal="true" onClick={e => e.stopPropagation()}
-            style={{ background: '#fff', color: '#000', borderRadius: 8, padding: '18px 18px 14px', width: 'min(420px, 100%)', boxShadow: '0 8px 30px rgba(0,0,0,.35)', fontFamily: 'Arial, sans-serif' }}>
-            <div style={{ fontSize: 15, fontWeight: 'bold', marginBottom: 6 }}>⚠️ {t.leaveTitle}</div>
-            <div style={{ fontSize: 13, color: '#444', marginBottom: 16 }}>{t.leaveText}</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <button onClick={saveAndLeave} disabled={uploading}
-                style={{ border: 'none', borderRadius: 4, padding: '11px 14px', minHeight: 44, fontSize: 13, fontWeight: 'bold', color: '#fff', cursor: 'pointer', background: '#1a7a3a', fontFamily: 'Arial, sans-serif' }}>{t.leaveSave}</button>
-              <button onClick={() => leaveNow(leaveTarget)}
-                style={{ border: 'none', borderRadius: 4, padding: '11px 14px', minHeight: 44, fontSize: 13, fontWeight: 'bold', color: '#fff', cursor: 'pointer', background: '#c53a08', fontFamily: 'Arial, sans-serif' }}>{t.leaveDiscard}</button>
-              <button onClick={() => setLeaveTarget(null)}
-                style={{ border: '1px solid #bbb', borderRadius: 4, padding: '11px 14px', minHeight: 44, fontSize: 13, fontWeight: 'bold', color: '#333', cursor: 'pointer', background: '#f2f2f2', fontFamily: 'Arial, sans-serif' }}>{t.leaveCancel}</button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {sigModal && (
         <SignatureModal label={sigModal.label} existing={form.signatures[sigModal.id]}
           onClose={dataUrl => handleSigClose(sigModal.id, dataUrl)} t={t} />
